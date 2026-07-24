@@ -109,6 +109,9 @@
                         Stable
                     </div>
                 </div>
+                <button id="share-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Copy shareable link to this scenario">
+                    Share
+                </button>
                 <button id="config-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto" aria-label="Open configuration">
                     &#9881;
                 </button>
@@ -118,10 +121,20 @@
         <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 my-6 md:my-auto">
 
             <!-- Left: CAS Engine Controls -->
-            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-5 pointer-events-auto" aria-labelledby="cas-controls-heading">
+            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-4 pointer-events-auto" aria-labelledby="cas-controls-heading">
                 <div class="border-b border-slate-700/50 pb-3 flex justify-between items-center">
                     <h2 id="cas-controls-heading" class="text-sm font-semibold tracking-wide text-slate-200">CAS Engine Controls</h2>
                     <span class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">ODE v2.4</span>
+                </div>
+
+                <!-- Scenario presets — one click loads a calibrated starting point.
+                     Illustrative values, not underwriting-grade. -->
+                <div>
+                    <div class="flex justify-between items-baseline mb-1.5">
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Scenario Presets</div>
+                        <div class="text-[9px] text-slate-500 italic">illustrative</div>
+                    </div>
+                    <div id="preset-chips" class="flex flex-wrap gap-1.5" role="group" aria-label="Scenario preset chips"></div>
                 </div>
 
                 <div class="space-y-1.5">
@@ -156,6 +169,24 @@
 
                 <div id="alert-box" class="p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200">
                     System nominal. Feedback dynamics within stable bounds.
+                </div>
+
+                <!-- 5-year projection sparkline: hand-rolled SVG, no chart library. -->
+                <div class="border-t border-slate-700/40 pt-3" aria-labelledby="proj-heading">
+                    <div class="flex justify-between items-baseline mb-1">
+                        <div id="proj-heading" class="text-[10px] uppercase tracking-wider text-slate-400 font-mono">5-yr Projection (BAU drift)</div>
+                        <div id="proj-endpoint" class="text-[11px] font-mono text-cyan-300">II→0.—</div>
+                    </div>
+                    <svg id="proj-svg" viewBox="0 0 200 40" class="w-full h-10 block" preserveAspectRatio="none" role="img" aria-label="Five year Insurability Index projection sparkline">
+                        <!-- Critical threshold at II=0.4 → y = 40*(1-0.4) = 24 -->
+                        <line x1="0" y1="24" x2="200" y2="24" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.5"></line>
+                        <path id="proj-path" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-0.5">
+                        <span>y0</span>
+                        <span id="proj-crit" class="text-slate-400">holds above critical</span>
+                        <span>y5</span>
+                    </div>
                 </div>
 
                 <!-- KafCade live readout: rolling volatility + bifurcation early-warning -->
@@ -255,7 +286,7 @@
             <div class="flex flex-wrap gap-x-4">
                 <span>Lat 25.7617&deg; N</span>
                 <span>Lon 80.1918&deg; W</span>
-                <span class="text-cyan-400">Region: S. Florida Atlantic</span>
+                <span id="footer-region" class="text-cyan-400">Region: S. Florida Atlantic</span>
                 <span id="footer-samples" class="text-slate-400">samples: 0</span>
             </div>
         </footer>
@@ -273,7 +304,6 @@
         // ---------- Utilities ---------- //
 
         // Fail-closed sanitizer: everything user-authored becomes textContent, never innerHTML.
-        function esc(s) { return String(s == null ? '' : s); }
         function el(tag, attrs, children) {
             const n = document.createElement(tag);
             if (attrs) for (const k in attrs) {
@@ -354,6 +384,52 @@
             if (params.get('activated')) Config.save({ activated: true });
         })();
 
+        // ---------- Regional / scenario presets ----------
+        // Illustrative demonstration values — NOT calibrated actuarial parameters.
+        // Real deployment would ingest region-specific data from NOAA/EM-DAT/reinsurer feeds.
+        const Presets = [
+            { id: 'sf-atl',   label: 'S. Florida Atlantic', freq: 1.6, adapt: 0.35, rein: 0.75 },
+            { id: 'gulf-la',  label: 'Gulf Coast LA',       freq: 2.2, adapt: 0.30, rein: 0.60 },
+            { id: 'bay-area', label: 'SF Bay Area',         freq: 1.4, adapt: 0.55, rein: 0.85 },
+            { id: 'bd-delta', label: 'Bangladesh Delta',    freq: 2.8, adapt: 0.20, rein: 0.30 },
+            { id: 'ssp2-45',  label: 'SSP2-4.5 Baseline',   freq: 1.2, adapt: 0.50, rein: 0.85 },
+            { id: 'ssp5-85',  label: 'SSP5-8.5 Aggressive', freq: 2.4, adapt: 0.30, rein: 0.55 }
+        ];
+        function findPreset(id) { return Presets.find(p => p.id === id) || null; }
+
+        // ---------- UrlState: sliders + preset ↔ URL query params ----------
+        // Rule (EvoForge STATE-SHAPE): this is VIEW-STATE, so URL is canonical, useState-equivalents are caches.
+        // On boot, apply URL params to state. On any user change, replaceState with the current view.
+        // Never bloats history — one entry per session. Share button copies location.href.
+        const UrlState = (function () {
+            const KEYS = ['f', 'a', 'r', 'preset'];
+            function readParams() {
+                const p = new URLSearchParams(location.search);
+                return {
+                    f: parseFloat(p.get('f')),
+                    a: parseFloat(p.get('a')),
+                    r: parseFloat(p.get('r')),
+                    preset: p.get('preset') || ''
+                };
+            }
+            function write(inputs, presetId) {
+                const p = new URLSearchParams(location.search);
+                // Preserve unrelated params (activated, utm_*, etc.) — only mutate ours.
+                KEYS.forEach(k => p.delete(k));
+                if (presetId) {
+                    p.set('preset', presetId);
+                } else {
+                    p.set('f', inputs.frequency.toFixed(2));
+                    p.set('a', inputs.adaptation.toFixed(2));
+                    p.set('r', inputs.reinsurance.toFixed(2));
+                }
+                const qs = p.toString();
+                const url = location.pathname + (qs ? '?' + qs : '') + location.hash;
+                history.replaceState(null, '', url);
+            }
+            return { readParams, write };
+        })();
+
         // ---------- KafCa: client-side event bus ---------- //
         // Named after Kafka semantics: publish, subscribe, no delivery order guarantees across topics, per-topic ordering preserved.
         const KafCa = (function () {
@@ -429,7 +505,7 @@
                 ledger = { id: sessionId, startedAt: nowIso(), events: [], seal: null };
             }
 
-            function persist() {
+            function persistNow() {
                 try {
                     ledger.seal = checksum(JSON.stringify(ledger.events));
                     localStorage.setItem(NS + sessionId, JSON.stringify(ledger));
@@ -442,12 +518,23 @@
                     }
                 } catch (_) { /* storage blocked; in-memory only */ }
             }
+            // Debounced persist — sliders emit `input` at ~60Hz. Writing the full ledger + FNV-1a
+            // seal on every tick was blocking the main thread (E-audit finding). Trailing-edge 200ms
+            // is well below human perception yet coalesces a full drag into one write.
+            let persistTimer = null;
+            function persist() {
+                if (persistTimer) return;
+                persistTimer = setTimeout(() => { persistTimer = null; persistNow(); }, 200);
+            }
             function record(type, data) {
                 ledger.events.push({ type, t: nowIso(), data: data || null });
                 if (ledger.events.length > 2000) ledger.events.splice(0, ledger.events.length - 2000);
                 persist();
                 KafCa.publish('metaclaw.recorded', { type, count: ledger.events.length });
             }
+            // Flush pending persist before the tab is torn down — otherwise a rapid drag then close
+            // would lose the last window of events. `pagehide` is more reliable than `beforeunload`.
+            window.addEventListener('pagehide', () => { if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; persistNow(); } });
 
             KafCa.subscribe('state.changed', ({ payload }) => record('state', payload));
             KafCa.subscribe('ui.audit.requested', ({ payload }) => record('audit', payload));
@@ -473,9 +560,12 @@
         // ---------- CAS engine: PURE function of inputs ---------- //
         // v0/v1 bug: fragility was integrated on every input event, monotonically climbing regardless of
         // adaptation — the "system stability" reading degraded no matter what users did. Now it's derived cleanly.
+        const DEFAULT_INPUTS = { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 };
         const state = {
-            inputs: { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 },
-            derived: { fragility: 0.20, premium: 0.25, insurabilityIndex: 0.82 }
+            inputs: Object.assign({}, DEFAULT_INPUTS),
+            derived: { fragility: 0.20, premium: 0.25, insurabilityIndex: 0.82 },
+            activePreset: '',
+            lastLevel: null
         };
 
         function computeCAS({ frequency, adaptation, reinsurance }) {
@@ -488,13 +578,57 @@
             return { fragility, premium, insurabilityIndex: ii };
         }
 
+        // 5-year forward projection under business-as-usual drift:
+        //   climate forcing accelerates ~5%/yr, adaptation compounds ~8%/yr on current budget,
+        //   reinsurance capacity retreats proportional to current-year fragility.
+        // Illustrative model — deeper 10-yr projection with cross-variable feedback is Pro.
+        function projectCAS(base, years) {
+            const out = [];
+            let f = base.frequency, a = base.adaptation, r = base.reinsurance;
+            for (let y = 0; y <= years; y++) {
+                const d = computeCAS({ frequency: f, adaptation: a, reinsurance: r });
+                out.push({ year: y, frequency: f, adaptation: a, reinsurance: r, ii: d.insurabilityIndex, fragility: d.fragility });
+                f = clamp(f * 1.05, 0.5, 4.0);
+                a = clamp(a * 1.08, 0, 1.0);
+                r = clamp(r - d.fragility * 0.05, 0.1, 1.0);
+            }
+            return out;
+        }
+
         function recompute() {
             state.derived = computeCAS(state.inputs);
             renderIndex();
+            renderProjection();
             KafCa.publish('state.changed', {
                 inputs: Object.assign({}, state.inputs),
                 derived: Object.assign({}, state.derived)
             });
+        }
+
+        // Sparkline projection — hand-rolled SVG, no chart library (IMMERSION-WITHOUT-WEIGHT).
+        // Threshold line at II=0.4 (critical bifurcation) drawn as dashed reference.
+        function renderProjection() {
+            const svg = document.getElementById('proj-path');
+            const end = document.getElementById('proj-endpoint');
+            const bandCrit = document.getElementById('proj-crit');
+            if (!svg) return;
+            const trajectory = projectCAS(state.inputs, 5);
+            const W = 200, H = 40;
+            const pts = trajectory.map((p, i) => {
+                const x = (i / (trajectory.length - 1)) * W;
+                const y = H - p.ii * H;
+                return x.toFixed(1) + ',' + y.toFixed(1);
+            });
+            svg.setAttribute('d', 'M' + pts.join(' L'));
+            const endII = trajectory[trajectory.length - 1].ii;
+            end.textContent = 'II→' + endII.toFixed(2);
+            end.className = 'font-mono ' + (endII < 0.4 ? 'text-red-400' : endII < 0.65 ? 'text-amber-400' : 'text-cyan-300');
+            // Colour the path by end-state severity
+            svg.setAttribute('stroke', endII < 0.4 ? '#ef4444' : endII < 0.65 ? '#f59e0b' : '#06b6d4');
+            // Update crit-crossing indicator: does II cross 0.4 within 5yr?
+            const crosses = trajectory.some(p => p.ii < 0.4) && trajectory[0].ii >= 0.4;
+            bandCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < 0.4 ? 'starts below critical' : 'holds above critical');
+            KafCa.publish('projection.updated', { end: endII, trajectory: trajectory });
         }
 
         function renderIndex() {
@@ -530,7 +664,11 @@
                 ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200';
                 ab.textContent = msg;
             }
-            announce('Insurability index ' + ii.toFixed(2) + ', ' + level);
+            // Announce only on level TRANSITIONS — screen readers were being spammed every slider tick.
+            if (level !== state.lastLevel) {
+                announce('Insurability index ' + ii.toFixed(2) + ', ' + level);
+                state.lastLevel = level;
+            }
         }
 
         // KafCade signals drive the trend/vol/bifurcation readout and gate escalating alerts.
@@ -683,13 +821,93 @@
 
         // ---------- Interaction ---------- //
 
+        // Single source of truth for input hydration. Slider bindings, preset apply, URL hydration,
+        // and any future reset-to-defaults all route through here — no more three-place drift.
+        function applyState(inputs, presetId) {
+            state.inputs = { frequency: inputs.frequency, adaptation: inputs.adaptation, reinsurance: inputs.reinsurance };
+            state.activePreset = presetId || '';
+            document.getElementById('freq-slider').value = state.inputs.frequency;
+            document.getElementById('adapt-slider').value = state.inputs.adaptation;
+            document.getElementById('rein-slider').value = state.inputs.reinsurance;
+            document.getElementById('freq-val').textContent = state.inputs.frequency.toFixed(1) + 'x';
+            document.getElementById('adapt-val').textContent = state.inputs.adaptation.toFixed(2);
+            document.getElementById('rein-val').textContent = state.inputs.reinsurance.toFixed(2);
+            const region = document.getElementById('footer-region');
+            const preset = findPreset(state.activePreset);
+            region.textContent = 'Region: ' + (preset ? preset.label : 'Custom scenario');
+            markActivePreset();
+            UrlState.write(state.inputs, state.activePreset);
+        }
+
         function bindSlider(id, key, fmt) {
             const s = document.getElementById(id);
             const v = document.getElementById(id.replace('-slider', '-val'));
             s.addEventListener('input', () => {
                 state.inputs[key] = parseFloat(s.value);
                 v.textContent = fmt(state.inputs[key]);
+                // Manual slider drift → clear preset id + refresh URL + footer region.
+                state.activePreset = '';
+                document.getElementById('footer-region').textContent = 'Region: Custom scenario';
+                markActivePreset();
+                UrlState.write(state.inputs, '');
                 recompute();
+            });
+        }
+
+        // Preset chip renderer + click handler.
+        function renderPresetChips() {
+            const root = document.getElementById('preset-chips');
+            root.textContent = '';
+            Presets.forEach(p => {
+                const chip = el('button', {
+                    type: 'button',
+                    'data-id': p.id,
+                    'aria-pressed': state.activePreset === p.id ? 'true' : 'false',
+                    class: 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(state.activePreset === p.id),
+                    text: p.label,
+                    onclick: () => applyPreset(p.id)
+                });
+                root.appendChild(chip);
+            });
+        }
+        function chipClass(active) {
+            return active
+                ? 'bg-cyan-500/25 border-cyan-400/60 text-cyan-100'
+                : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-200';
+        }
+        function markActivePreset() {
+            const chips = document.querySelectorAll('#preset-chips .preset-chip');
+            chips.forEach(c => {
+                const on = c.getAttribute('data-id') === state.activePreset;
+                c.setAttribute('aria-pressed', on ? 'true' : 'false');
+                c.className = 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(on);
+            });
+        }
+        function applyPreset(id) {
+            const p = findPreset(id);
+            if (!p) return;
+            applyState({ frequency: p.freq, adaptation: p.adapt, reinsurance: p.rein }, id);
+            KafCa.publish('preset.applied', { id: id, label: p.label });
+            recompute();
+            appendChat('Preset loaded: ' + p.label + '. Sliders reflect illustrative starting values.', 'ai');
+        }
+
+        // Share button — copies current view URL to clipboard.
+        function bindShareButton() {
+            const btn = document.getElementById('share-btn');
+            const original = btn.textContent;
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(location.href);
+                    btn.textContent = 'Copied ✓';
+                    setTimeout(() => { btn.textContent = original; }, 1500);
+                    KafCa.publish('ui.share.copied', { url: location.href });
+                } catch (_) {
+                    // Clipboard blocked (insecure context, permissions) — fall back to selection prompt.
+                    btn.textContent = 'Copy URL';
+                    window.prompt('Copy this URL:', location.href);
+                    setTimeout(() => { btn.textContent = original; }, 1500);
+                }
             });
         }
 
@@ -706,20 +924,32 @@
             const ii = state.derived.insurabilityIndex;
             const win = KafCade.snapshot();
             const trend = win.length > 4 ? (win[win.length - 1] - win[0]).toFixed(2) : '0.00';
+            const proj = projectCAS(state.inputs, 5);
+            const projEnd = proj[proj.length - 1].ii;
+            const crossYear = proj.findIndex(p => p.ii < 0.4);
             const q = query.toLowerCase();
             if (q.includes('bond') || q.includes('resilience')) {
-                return 'Given current II=' + ii.toFixed(2) + ' and Δtrajectory=' + trend + ', I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
+                return 'Given current II=' + ii.toFixed(2) + ', projected II→' + projEnd.toFixed(2) + ' at t+5yr under BAU drift. I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
             }
             if (q.includes('mortgage') || q.includes('default')) {
                 return 'Insurance capacity below 0.60 correlates with ~14% incremental default probability on 30yr mortgages. Current II=' + ii.toFixed(2) + '. Portfolio-level detail: request an Asset Vulnerability Assessment.';
             }
-            if (q.includes('exit') || q.includes('flight')) {
-                return 'Primary carrier exit typically begins ~3.5yr before II crosses 0.4. Current trend=' + trend + '. Sustained negative trend triggers bifurcation flag.';
+            if (q.includes('exit') || q.includes('flight') || q.includes('when')) {
+                if (crossYear > 0) {
+                    return 'Under BAU drift, this trajectory crosses the critical II=0.4 threshold at year ' + crossYear + '. Primary carriers typically exit ~3.5yr ahead of the crossing. Consider immediate parametric coverage.';
+                }
+                return 'Trajectory holds above the critical threshold across the 5yr horizon (endpoint II=' + projEnd.toFixed(2) + '). No imminent carrier exit signal in the projection.';
+            }
+            if (q.includes('projection') || q.includes('5 year') || q.includes('forecast')) {
+                return 'Projection endpoint (t+5yr, BAU drift): II→' + projEnd.toFixed(2) + '. ' + (crossYear > 0 ? 'Crosses critical threshold at y' + crossYear + '.' : 'Holds above critical.') + ' Deeper 10yr projection with cross-variable feedback is available under Pro.';
+            }
+            if (q.includes('preset') || q.includes('scenario')) {
+                return 'Six illustrative presets are available above the sliders — coastal FL, Gulf LA, SF Bay, Bangladesh Delta, plus IPCC SSP2-4.5 and SSP5-8.5. Click a chip to load, tweak sliders to depart from it.';
             }
             if (ii < 0.4) {
                 return 'Diagnostic alert: at II=' + ii.toFixed(2) + ', primary carriers exit. Recommend federal resilience reinsurance backstop or mandatory municipal hardening.';
             }
-            return 'System response: query evaluated against current state (climate forcing ' + state.inputs.frequency.toFixed(1) + 'x, adaptation ' + state.inputs.adaptation.toFixed(2) + '). Insurability holding at ' + ii.toFixed(2) + '.';
+            return 'System response: query evaluated against current state (climate forcing ' + state.inputs.frequency.toFixed(1) + 'x, adaptation ' + state.inputs.adaptation.toFixed(2) + '). Insurability holding at ' + ii.toFixed(2) + ', projected ' + projEnd.toFixed(2) + ' at t+5yr.';
         }
 
         // ---------- Modal system (accessible; focus trapped; Escape closes) ---------- //
@@ -819,7 +1049,7 @@
 
             const gate = cfg.activated
                 ? 'You\'re on Pro — spec is unlocked instantly.'
-                : 'Free preview generates a redacted spec. Full spec unlocks after Pro activation (' + esc(cfg.bondPrice) + ').';
+                : 'Free preview generates a redacted spec. Full spec unlocks after Pro activation (' + cfg.bondPrice + ').';
 
             const primary = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: cfg.activated ? 'Generate Full Spec' : 'Generate Preview' });
             const buyBtn = cfg.stripeBondUrl && !cfg.activated
@@ -1025,6 +1255,23 @@ Singularity Nexus · © 2026</div>
             bindSlider('freq-slider', 'frequency', v => v.toFixed(1) + 'x');
             bindSlider('adapt-slider', 'adaptation', v => v.toFixed(2));
             bindSlider('rein-slider', 'reinsurance', v => v.toFixed(2));
+            renderPresetChips();
+            bindShareButton();
+
+            // Hydrate from URL — preset id wins over raw sliders (canonical VIEW-STATE serialisation).
+            const p = UrlState.readParams();
+            const preset = findPreset(p.preset);
+            if (preset) {
+                applyState({ frequency: preset.freq, adaptation: preset.adapt, reinsurance: preset.rein }, preset.id);
+            } else if ([p.f, p.a, p.r].every(v => Number.isFinite(v))) {
+                applyState({
+                    frequency: clamp(p.f, 0.5, 4.0),
+                    adaptation: clamp(p.a, 0.0, 1.0),
+                    reinsurance: clamp(p.r, 0.1, 1.0)
+                }, '');
+            } else {
+                applyState(DEFAULT_INPUTS, '');
+            }
 
             document.getElementById('audit-btn').addEventListener('click', () => {
                 const s = state.derived;

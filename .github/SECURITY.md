@@ -33,3 +33,13 @@ Out of scope:
 - Vulnerabilities in Tailwind CDN or Three.js CDN (report upstream)
 - Social engineering / physical attacks
 - Findings requiring privileged local access
+
+## Known limits by design (honor-system caveats)
+
+Singularity Nexus ships as a static single-file HTML app with no backend. This has security implications that are **not defects but design trade-offs**:
+
+- **Pro activation is client-side only.** The `?activated=1` URL param sets a `localStorage` flag that the app trusts. A user with DevTools can flip the flag manually and unlock premium features without paying. This is the standard trade-off of a serverless freemium checkout; we ship it honestly rather than pretending it's a licence check.
+- **EvoMetaClaw session seal is FNV-1a, not cryptographic.** The `checksum()` function is a fast non-cryptographic hash. It provides *tamper-evidence for casual inspection*, not tamper-resistance against a motivated attacker. A real audit trail requires server-side signing (Ed25519 or equivalent).
+- **Lead-capture webhook is user-configured.** The gear-icon config panel lets the site operator paste an arbitrary POST endpoint. If misconfigured to a third party, lead data leaks there. We do not validate the webhook target.
+
+The **enforceable-licensing path** (Stripe webhook + signed unlock token verified server-side) is scoped as a Phase 2 item in [BLUEPRINT.md](../BLUEPRINT.md). Adding a backend does not require a frontend rewrite.

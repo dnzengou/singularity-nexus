@@ -1,6 +1,6 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Date:** 2026-07-24
 **Status:** Production-ready pilot · single-file HTML app
 **Live URL:** `https://dnzengou.github.io/singularity-nexus/` (post-Pages activation)
@@ -94,7 +94,12 @@ Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded 
 | UTC-drift fix on date rendering | ✅ | `todayLocalIso()` helper |
 | GitHub Pages deploy + CI workflow | ✅ | `.github/workflows/deploy.yml` |
 | Security defaults (Dependabot + SECURITY.md) | ✅ | Ship with first distribution |
-| RAF-throttle rapid slider input | 🔲 | Deferred — perf optimisation, not correctness |
+| Regional / SSP scenario presets (6, illustrative) | ✅ | v1.1 — one-click starting points |
+| URL-state sync (`?f/?a/?r/?preset`) + Share View | ✅ | v1.1 — shareable deep links |
+| 5-year projection sparkline + `projectCAS` | ✅ | v1.1 — deeper CAS surface |
+| Debounce EvoMetaClaw persist (fix 60Hz storage write) | ✅ | v1.1 — E-audit P1 fold |
+| ARIA-live announce only on level transitions | ✅ | v1.1 — E-audit P1 fold |
+| `applyState()` single-source-of-truth helper | ✅ | v1.1 — E-audit P1 fold |
 | Named constants for CAS coefficients | 🔲 | Auditability improvement |
 | Playwright smoke test suite | 🔲 | Pre-scale requirement |
 | Cryptographic seal (server-signed) for EvoMetaClaw | 🔲 | Requires backend — Phase 2 |
@@ -157,6 +162,21 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.1.0 — 2026-07-24
+- **UI/UX evolution (evo-metaclaw v1.6 DOMAIN-EXTENSION):**
+  - 6 scenario presets (S. Florida Atlantic · Gulf Coast LA · SF Bay Area · Bangladesh Delta · SSP2-4.5 · SSP5-8.5), one-click chip row above sliders. Values are illustrative demonstration data (evo-metaclaw v1.6 DEMONSTRATION-DATA DISCIPLINE), not underwriting-grade.
+  - URL-state canonical (evo-forge v1.3 STATE-SHAPE gate — this is VIEW-STATE): sliders + preset id sync to `?f=…&a=…&r=…&preset=…` via `history.replaceState`; **Share** button in header copies `location.href` (clipboard API with prompt fallback).
+  - Footer region label now driven by active preset (was hardcoded "S. Florida Atlantic").
+- **CAS engine depth:**
+  - New `projectCAS(base, years)` pure function projects 5-yr trajectory under BAU drift (climate forcing +5%/yr, adaptation compounds +8%/yr on budget, reinsurance retreats proportional to fragility).
+  - Inline SVG sparkline (hand-rolled, no chart library — evo-metaclaw v1.7 IMMERSION-WITHOUT-WEIGHT) with critical-threshold reference line at II=0.4 and endpoint colour by severity.
+  - Concierge upgraded to reference projection: "when do carriers exit", "5 year forecast", "projection", "preset" now emit grounded responses.
+- **E-audit P1s folded (evo-metaclaw v1.5 E-B PARALLEL COMMIT HOLD):**
+  - EvoMetaClaw `persist()` debounced (trailing 200ms + `pagehide` flush) — was writing full ledger + FNV-1a seal on every 60Hz slider tick.
+  - `announce()` fires only on level transitions (stable → elevated → critical) — was spamming screen readers.
+  - `applyState(inputs, presetId)` factored as single source of truth — slider defaults previously lived in three places (HTML `value=`, span text, JS state).
+  - Removed misleadingly-named `esc()` helper (was a stringifier, not an HTML-escape).
 
 ### v1.0.0 — 2026-07-24
 - Initial production ship as `index.html`
