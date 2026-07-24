@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#030712">
+    <meta name="description" content="Singularity Nexus - Complex Adaptive Systems intelligence engine for climate insurability bifurcation forecasting.">
+    <!-- CSP tightened: no eval, no inline handlers, only allowlisted CDN origins. Inline script tag below is the last necessary exception. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; connect-src 'self' https:; font-src 'self' data:; frame-ancestors 'none'; form-action 'self';">
+    <title>Singularity Nexus | CAS Insurance Intelligence</title>
+
+    <!-- CDN resources with graceful onerror fallback. SRI is intentionally omitted for tailwind (dynamic response body) and left as a deploy-time responsibility for three.js pinning. -->
+    <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"
+            onerror="window.__NEXUS_TW_FAILED=true"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"
+            onerror="window.__NEXUS_THREE_FAILED=true"></script>
+
+    <style>
+        :root {
+            --nx-bg: #030712;
+            --nx-panel: rgba(15, 23, 42, 0.65);
+            --nx-border: rgba(255, 255, 255, 0.10);
+            --nx-cyan: #06b6d4;
+            --nx-amber: #f59e0b;
+            --nx-red: #ef4444;
+            --nx-emerald: #10b981;
+        }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            background: var(--nx-bg);
+            color: #f9fafb;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            /* Removed the v0/v1 `overflow: hidden` — it silently clipped mobile content. Modal + main are self-scrolling. */
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        canvas { display: block; }
+        .glass-card {
+            background: var(--nx-panel);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--nx-border);
+        }
+        .text-glow { text-shadow: 0 0 12px rgba(6, 182, 212, 0.6); }
+        .text-glow-danger { text-shadow: 0 0 12px rgba(239, 68, 68, 0.6); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+        /* Fallback if Tailwind CDN dies: bare-minimum readable layout so we never present a blank page. */
+        .nx-fallback-shell { max-width: 960px; margin: 40px auto; padding: 24px; }
+        .nx-fallback-shell input, .nx-fallback-shell button {
+            background: #0f172a; color: #f9fafb; border: 1px solid #334155;
+            padding: 8px; border-radius: 6px; font: inherit;
+        }
+        /* Respect motion preferences — CAS glitch shader and starfield rotation both spin fast. */
+        @media (prefers-reduced-motion: reduce) {
+            #canvas-container { opacity: 0.35; }
+            .animate-ping { animation: none !important; }
+        }
+        /* Focus visibility for keyboard nav — the default outline gets swallowed by tailwind reset. */
+        button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
+            outline: 2px solid var(--nx-cyan);
+            outline-offset: 2px;
+        }
+        .nx-modal-backdrop {
+            position: fixed; inset: 0; background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(8px); z-index: 50;
+            display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- 3D WebGL layer (or falls back to #canvas-2d below). -->
+    <div id="canvas-container" class="fixed inset-0 z-0" aria-hidden="true"></div>
+    <canvas id="canvas-2d" class="fixed inset-0 z-0" hidden aria-hidden="true"></canvas>
+
+    <!-- ARIA live region: screen readers hear status transitions (stable → elevated → critical) as they occur. -->
+    <div id="aria-live" role="status" aria-live="polite" class="sr-only" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+
+    <!-- Primary UI overlay. -->
+    <div class="relative z-10 flex flex-col min-h-screen p-4 md:p-6 pointer-events-none">
+
+        <header class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 pointer-events-auto">
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping" aria-hidden="true"></div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-wider text-glow bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                        SINGULARITY NEXUS
+                    </h1>
+                    <p class="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-mono">
+                        CAS Predictive Risk Intelligence Platform
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div id="activation-chip" class="glass-card px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider text-slate-400" hidden>
+                    <span class="text-emerald-400">&#9679;</span> Pro Activated
+                </div>
+                <div class="glass-card px-5 py-2.5 rounded-xl flex items-center space-x-4" role="group" aria-label="Live insurability index">
+                    <div>
+                        <div class="text-[9px] uppercase tracking-wider text-slate-400 font-mono">Insurability Index (II<sub>t</sub>)</div>
+                        <div id="index-val" class="text-xl font-mono font-bold text-cyan-400" aria-live="off">0.82</div>
+                    </div>
+                    <div id="status-badge" class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        Stable
+                    </div>
+                </div>
+                <button id="config-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto" aria-label="Open configuration">
+                    &#9881;
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 my-6 md:my-auto">
+
+            <!-- Left: CAS Engine Controls -->
+            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-5 pointer-events-auto" aria-labelledby="cas-controls-heading">
+                <div class="border-b border-slate-700/50 pb-3 flex justify-between items-center">
+                    <h2 id="cas-controls-heading" class="text-sm font-semibold tracking-wide text-slate-200">CAS Engine Controls</h2>
+                    <span class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">ODE v2.4</span>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="freq-slider" class="flex justify-between text-xs font-mono">
+                        <span class="text-slate-400">Climate Forcing (f<sub>t</sub>)</span>
+                        <span id="freq-val" class="text-cyan-400">1.2x</span>
+                    </label>
+                    <input type="range" id="freq-slider" min="0.5" max="4.0" step="0.1" value="1.2"
+                           aria-describedby="freq-val"
+                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="adapt-slider" class="flex justify-between text-xs font-mono">
+                        <span class="text-slate-400">Adaptation Budget (A<sub>t</sub>)</span>
+                        <span id="adapt-val" class="text-cyan-400">0.40</span>
+                    </label>
+                    <input type="range" id="adapt-slider" min="0.0" max="1.0" step="0.05" value="0.40"
+                           aria-describedby="adapt-val"
+                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="rein-slider" class="flex justify-between text-xs font-mono">
+                        <span class="text-slate-400">Reinsurance Backstop (R<sub>t</sub>)</span>
+                        <span id="rein-val" class="text-cyan-400">0.85</span>
+                    </label>
+                    <input type="range" id="rein-slider" min="0.1" max="1.0" step="0.05" value="0.85"
+                           aria-describedby="rein-val"
+                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                </div>
+
+                <div id="alert-box" class="p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200">
+                    System nominal. Feedback dynamics within stable bounds.
+                </div>
+
+                <!-- KafCade live readout: rolling volatility + bifurcation early-warning -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-800/50 rounded-lg p-2">
+                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Trend</div>
+                        <div id="metric-trend" class="text-sm font-mono text-slate-100">&#8594; flat</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-2">
+                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Vol.</div>
+                        <div id="metric-vol" class="text-sm font-mono text-slate-100">0.00</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-2">
+                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Bifurc.</div>
+                        <div id="metric-bif" class="text-sm font-mono text-emerald-400">no</div>
+                    </div>
+                </div>
+
+                <button id="audit-btn" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-cyan-500/25">
+                    Generate Executive Audit
+                </button>
+            </section>
+
+            <!-- Center: Commercial Pipeline (the two low-hanging fruit) -->
+            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-4 pointer-events-auto" aria-labelledby="commerce-heading">
+                <div class="border-b border-slate-700/50 pb-3 flex justify-between items-center">
+                    <h2 id="commerce-heading" class="text-sm font-semibold tracking-wide text-slate-200">Commercial Pipeline</h2>
+                    <span class="text-[10px] font-mono bg-emerald-900/40 text-emerald-300 px-2 py-0.5 rounded">Live</span>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    Two automated services routed through the <em>desiredsolutions</em> toolbox. Free tier delivers value instantly; premium tier is Stripe-gated.
+                </p>
+
+                <button id="assess-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Asset Vulnerability Assessment</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Portfolio-level II<sub>t</sub> scoring + downloadable report</div>
+                        </div>
+                        <span class="text-[10px] font-mono text-emerald-400">FREE</span>
+                    </div>
+                </button>
+
+                <button id="bond-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Resilience Bond Specification</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Parametric trigger + notional + payout schedule</div>
+                        </div>
+                        <span id="bond-price-chip" class="text-[10px] font-mono text-amber-400">$99</span>
+                    </div>
+                </button>
+
+                <button id="export-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Export Trajectory Data</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Signed session ledger &mdash; the EvoMetaClaw moat</div>
+                        </div>
+                        <span id="export-price-chip" class="text-[10px] font-mono text-amber-400">Pro</span>
+                    </div>
+                </button>
+            </section>
+
+            <!-- Right: AI Risk Concierge -->
+            <section class="md:col-span-4 glass-card p-5 rounded-2xl flex flex-col h-[420px] pointer-events-auto" aria-labelledby="concierge-heading">
+                <div class="border-b border-slate-700/50 pb-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></div>
+                        <h3 id="concierge-heading" class="text-xs font-bold uppercase tracking-wider text-slate-200">AI Risk Concierge</h3>
+                    </div>
+                    <span class="text-[9px] font-mono text-slate-400">RAG Grounded</span>
+                </div>
+
+                <div id="chat-feed" class="flex-1 overflow-y-auto my-3 space-y-3 text-xs pr-1" role="log" aria-live="polite" aria-relevant="additions">
+                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/40 text-slate-300">
+                        Hello. I monitor active CAS feedback loops across coastal real estate and primary insurance. Adjust parameters or ask about tipping points.
+                    </div>
+                </div>
+
+                <form id="chat-form" class="mt-auto flex space-x-2" autocomplete="off">
+                    <label for="chat-input" class="sr-only">Ask the AI Risk Concierge a question</label>
+                    <input type="text" id="chat-input" placeholder="Ask about capital exit points..." maxlength="200"
+                           class="flex-1 bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+                    <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
+                        Send
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <footer class="flex flex-col md:flex-row md:justify-between md:items-center text-[10px] font-mono text-slate-500 pointer-events-auto gap-2 pt-4">
+            <div>
+                Singularity Nexus &copy; 2026 &middot; CAS Climate Engine &middot;
+                <span id="footer-session" class="text-slate-400"></span>
+            </div>
+            <div class="flex flex-wrap gap-x-4">
+                <span>Lat 25.7617&deg; N</span>
+                <span>Lon 80.1918&deg; W</span>
+                <span class="text-cyan-400">Region: S. Florida Atlantic</span>
+                <span id="footer-samples" class="text-slate-400">samples: 0</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ================= Modal templates (kept hidden until called) ================= -->
+
+    <div id="modal-root" hidden></div>
+
+    <!-- ================= Application logic ================= -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ---------- Utilities ---------- //
+
+        // Fail-closed sanitizer: everything user-authored becomes textContent, never innerHTML.
+        function esc(s) { return String(s == null ? '' : s); }
+        function el(tag, attrs, children) {
+            const n = document.createElement(tag);
+            if (attrs) for (const k in attrs) {
+                if (k === 'class') n.className = attrs[k];
+                else if (k === 'text') n.textContent = attrs[k];
+                else if (k.startsWith('on') && typeof attrs[k] === 'function') n.addEventListener(k.slice(2), attrs[k]);
+                else if (attrs[k] === true) n.setAttribute(k, '');
+                else if (attrs[k] !== false && attrs[k] != null) n.setAttribute(k, attrs[k]);
+            }
+            if (children) for (const c of [].concat(children)) {
+                if (c == null || c === false) continue;
+                n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+            }
+            return n;
+        }
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+        // Non-cryptographic checksum for tamper-evidence on the trajectory ledger. Not a security boundary — a real deployment signs server-side.
+        function checksum(str) {
+            let h = 2166136261 >>> 0;
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619) >>> 0;
+            }
+            return ('00000000' + h.toString(16)).slice(-8);
+        }
+        function nowIso() { return new Date().toISOString(); }
+        // Local date string YYYY-MM-DD — avoids UTC boundary drift for users west of UTC
+        // where toISOString().slice(0,10) rolls to tomorrow after ~19:00 local time.
+        function todayLocalIso() {
+            const d = new Date();
+            const p = n => (n < 10 ? '0' : '') + n;
+            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+        }
+        function shortId(prefix) {
+            const buf = new Uint8Array(6);
+            (window.crypto || window.msCrypto).getRandomValues(buf);
+            return prefix + '_' + Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        function download(name, mime, content) {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = el('a', { href: url, download: name });
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function announce(msg) {
+            const live = document.getElementById('aria-live');
+            if (live) live.textContent = msg;
+        }
+
+        // ---------- Config (Stripe link, webhook, activation) ---------- //
+
+        const CFG_KEY = 'nexus.v1.config';
+        const Config = {
+            defaults: {
+                stripeBondUrl: '',
+                stripeProUrl: '',
+                leadWebhook: '',
+                activated: false,
+                bondPrice: '$99',
+                proPrice: '$29/mo'
+            },
+            load() {
+                try {
+                    const raw = localStorage.getItem(CFG_KEY);
+                    return Object.assign({}, this.defaults, raw ? JSON.parse(raw) : {});
+                } catch (_) { return Object.assign({}, this.defaults); }
+            },
+            save(patch) {
+                const next = Object.assign(this.load(), patch);
+                try { localStorage.setItem(CFG_KEY, JSON.stringify(next)); } catch (_) {}
+                return next;
+            }
+        };
+        // URL-driven activation: e.g. `?activated=1` sets pro flag after Stripe redirect success page bounces back here.
+        (function applyUrlActivation() {
+            const params = new URLSearchParams(location.search);
+            if (params.get('activated')) Config.save({ activated: true });
+        })();
+
+        // ---------- KafCa: client-side event bus ---------- //
+        // Named after Kafka semantics: publish, subscribe, no delivery order guarantees across topics, per-topic ordering preserved.
+        const KafCa = (function () {
+            const subs = new Map();
+            return {
+                publish(topic, payload) {
+                    const evt = { topic, payload, t: performance.now() };
+                    (subs.get(topic) || []).forEach(h => {
+                        try { h(evt); } catch (e) { console.warn('[KafCa]', topic, e); }
+                    });
+                },
+                subscribe(topic, handler) {
+                    if (!subs.has(topic)) subs.set(topic, []);
+                    subs.get(topic).push(handler);
+                    return () => {
+                        const arr = subs.get(topic) || [];
+                        const i = arr.indexOf(handler);
+                        if (i >= 0) arr.splice(i, 1);
+                    };
+                }
+            };
+        })();
+
+        // ---------- KafCade: cascading windowed aggregator over KafCa events ---------- //
+        // Emits `stream.window.updated` with trend/volatility/bifurcation signals derived from a rolling buffer.
+        const KafCade = (function () {
+            const WINDOW = 60;
+            const buffer = [];
+            function stddev(xs) {
+                if (xs.length < 2) return 0;
+                const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+                const v = xs.reduce((a, b) => a + (b - m) * (b - m), 0) / xs.length;
+                return Math.sqrt(v);
+            }
+            function trendOf(xs) {
+                if (xs.length < 4) return 0;
+                const head = xs.slice(0, Math.floor(xs.length / 2));
+                const tail = xs.slice(-Math.floor(xs.length / 2));
+                const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
+                return avg(tail) - avg(head);
+            }
+            KafCa.subscribe('state.changed', ({ payload }) => {
+                buffer.push(payload.derived.insurabilityIndex);
+                if (buffer.length > WINDOW) buffer.shift();
+                const vol = stddev(buffer);
+                const tr = trendOf(buffer);
+                // Bifurcation heuristic: sustained downward trend AND recent value near critical threshold.
+                const bif = tr < -0.05 && buffer[buffer.length - 1] < 0.5;
+                KafCa.publish('stream.window.updated', {
+                    trend: tr, volatility: vol, bifurcation: bif, samples: buffer.length
+                });
+            });
+            return { snapshot: () => buffer.slice() };
+        })();
+
+        // ---------- EvoMetaClaw: signed trajectory registry (the moat) ---------- //
+        // Every session's parameter trajectory + decisions accumulate here. Sealed with a checksum so
+        // tampering is detectable. Export is gated behind Pro activation — this is the training-data flywheel.
+        const EvoMetaClaw = (function () {
+            const NS = 'nexus.v1.evometaclaw.';
+            const IDX_KEY = NS + 'index';
+            let sessionId, ledger;
+            try {
+                sessionId = localStorage.getItem(NS + 'currentSession');
+                if (!sessionId) {
+                    sessionId = shortId('sess');
+                    localStorage.setItem(NS + 'currentSession', sessionId);
+                }
+                const raw = localStorage.getItem(NS + sessionId);
+                ledger = raw ? JSON.parse(raw) : { id: sessionId, startedAt: nowIso(), events: [], seal: null };
+            } catch (_) {
+                sessionId = shortId('sess');
+                ledger = { id: sessionId, startedAt: nowIso(), events: [], seal: null };
+            }
+
+            function persist() {
+                try {
+                    ledger.seal = checksum(JSON.stringify(ledger.events));
+                    localStorage.setItem(NS + sessionId, JSON.stringify(ledger));
+                    // Maintain an index of sessions so a user can enumerate their history across restarts.
+                    let idx = [];
+                    try { idx = JSON.parse(localStorage.getItem(IDX_KEY) || '[]'); } catch (_) {}
+                    if (!idx.includes(sessionId)) {
+                        idx.push(sessionId);
+                        localStorage.setItem(IDX_KEY, JSON.stringify(idx.slice(-50)));
+                    }
+                } catch (_) { /* storage blocked; in-memory only */ }
+            }
+            function record(type, data) {
+                ledger.events.push({ type, t: nowIso(), data: data || null });
+                if (ledger.events.length > 2000) ledger.events.splice(0, ledger.events.length - 2000);
+                persist();
+                KafCa.publish('metaclaw.recorded', { type, count: ledger.events.length });
+            }
+
+            KafCa.subscribe('state.changed', ({ payload }) => record('state', payload));
+            KafCa.subscribe('ui.audit.requested', ({ payload }) => record('audit', payload));
+            KafCa.subscribe('commerce.lead.captured', ({ payload }) => record('lead', payload));
+            KafCa.subscribe('commerce.bond.generated', ({ payload }) => record('bond', payload));
+
+            return {
+                sessionId,
+                snapshot: () => JSON.parse(JSON.stringify(ledger)),
+                export() {
+                    // Adjacent snapshot with fresh seal — recipient can verify integrity.
+                    const snap = this.snapshot();
+                    snap.exportedAt = nowIso();
+                    snap.seal = checksum(JSON.stringify(snap.events));
+                    return snap;
+                },
+                verify(snap) {
+                    try { return snap && snap.seal === checksum(JSON.stringify(snap.events)); } catch (_) { return false; }
+                }
+            };
+        })();
+
+        // ---------- CAS engine: PURE function of inputs ---------- //
+        // v0/v1 bug: fragility was integrated on every input event, monotonically climbing regardless of
+        // adaptation — the "system stability" reading degraded no matter what users did. Now it's derived cleanly.
+        const state = {
+            inputs: { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 },
+            derived: { fragility: 0.20, premium: 0.25, insurabilityIndex: 0.82 }
+        };
+
+        function computeCAS({ frequency, adaptation, reinsurance }) {
+            const fragility = clamp(0.35 * frequency - 0.55 * adaptation + 0.15, 0, 1);
+            const premium = clamp((0.25 * frequency) + (0.35 * fragility) + (0.20 * (1 - reinsurance)), 0.1, 2.0);
+            const ii = clamp(
+                (0.45 * reinsurance) - (0.30 * premium) - (0.15 * (frequency / 4)) - (0.10 * fragility) + 0.65,
+                0, 1
+            );
+            return { fragility, premium, insurabilityIndex: ii };
+        }
+
+        function recompute() {
+            state.derived = computeCAS(state.inputs);
+            renderIndex();
+            KafCa.publish('state.changed', {
+                inputs: Object.assign({}, state.inputs),
+                derived: Object.assign({}, state.derived)
+            });
+        }
+
+        function renderIndex() {
+            const iv = document.getElementById('index-val');
+            const sb = document.getElementById('status-badge');
+            const ab = document.getElementById('alert-box');
+            const ii = state.derived.insurabilityIndex;
+            iv.textContent = ii.toFixed(2);
+
+            let level, msg;
+            if (ii < 0.40) {
+                level = 'critical';
+                msg = 'CRITICAL: Index below 0.40. Reinsurance capital flight active. Mortgages losing underlying insurance backstop.';
+                iv.className = 'text-xl font-mono font-bold text-red-500 text-glow-danger';
+                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30';
+                sb.textContent = 'Critical Bifurcation';
+                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-red-950/50 border-red-500/50 text-red-200';
+                ab.textContent = msg;
+            } else if (ii < 0.65) {
+                level = 'elevated';
+                msg = 'ATTENTION: Primary insurers retreating. Residual market approaching absorption limits.';
+                iv.className = 'text-xl font-mono font-bold text-amber-400';
+                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                sb.textContent = 'Elevated Risk';
+                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-amber-950/40 border-amber-500/40 text-amber-200';
+                ab.textContent = msg;
+            } else {
+                level = 'stable';
+                msg = 'System nominal. Feedback dynamics within stable bounds.';
+                iv.className = 'text-xl font-mono font-bold text-cyan-400 text-glow';
+                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                sb.textContent = 'Stable';
+                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200';
+                ab.textContent = msg;
+            }
+            announce('Insurability index ' + ii.toFixed(2) + ', ' + level);
+        }
+
+        // KafCade signals drive the trend/vol/bifurcation readout and gate escalating alerts.
+        KafCa.subscribe('stream.window.updated', ({ payload }) => {
+            const arrow = payload.trend > 0.02 ? '↗' : payload.trend < -0.02 ? '↘' : '→';
+            document.getElementById('metric-trend').textContent = arrow + ' ' + payload.trend.toFixed(2);
+            document.getElementById('metric-vol').textContent = payload.volatility.toFixed(3);
+            const bif = document.getElementById('metric-bif');
+            bif.textContent = payload.bifurcation ? 'YES' : 'no';
+            bif.className = 'text-sm font-mono ' + (payload.bifurcation ? 'text-red-400 text-glow-danger' : 'text-emerald-400');
+            document.getElementById('footer-samples').textContent = 'samples: ' + payload.samples;
+        });
+
+        // ---------- WebGL renderer (with graceful 2D fallback) ---------- //
+
+        const vertexShader = `
+            uniform float uTime;
+            uniform float uRisk;
+            varying vec2 vUv;
+            varying float vNoise;
+            float noise(vec3 p) {
+                return sin(p.x * 3.0 + uTime) * cos(p.y * 3.0 + uTime) * sin(p.z * 3.0 + uTime);
+            }
+            void main() {
+                vUv = uv;
+                vec3 p = position;
+                float n = noise(p);
+                vNoise = n;
+                float displacement = n * (1.0 - uRisk) * 0.8;
+                p += normal * displacement;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+            }
+        `;
+        const fragmentShader = `
+            uniform float uTime;
+            uniform float uRisk;
+            varying vec2 vUv;
+            varying float vNoise;
+            void main() {
+                vec3 cyanColor  = vec3(0.02, 0.71, 0.83);
+                vec3 amberColor = vec3(0.95, 0.60, 0.10);
+                vec3 redColor   = vec3(0.93, 0.20, 0.20);
+                vec3 finalColor;
+                if (uRisk > 0.65) {
+                    finalColor = mix(amberColor, cyanColor, (uRisk - 0.65) / 0.35);
+                } else {
+                    finalColor = mix(redColor, amberColor, uRisk / 0.65);
+                }
+                float pulse = sin(vUv.x * 40.0 - uTime * 3.0) * 0.5 + 0.5;
+                finalColor += pulse * 0.25;
+                if (uRisk < 0.40) {
+                    float glitch = step(0.85, sin(uTime * 25.0));
+                    finalColor += vec3(glitch * 0.4);
+                }
+                gl_FragColor = vec4(finalColor, 0.85);
+            }
+        `;
+
+        function initWebGL() {
+            if (window.__NEXUS_THREE_FAILED || typeof THREE === 'undefined') return false;
+            let container = document.getElementById('canvas-container');
+            let scene, camera, renderer, filamentMesh;
+            try {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 4.5;
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                container.appendChild(renderer.domElement);
+
+                const geometry = new THREE.TorusKnotGeometry(1.2, 0.35, 180, 30);
+                const material = new THREE.ShaderMaterial({
+                    vertexShader, fragmentShader,
+                    uniforms: {
+                        uTime: { value: 0 },
+                        uRisk: { value: state.derived.insurabilityIndex }
+                    },
+                    wireframe: true, transparent: true
+                });
+                filamentMesh = new THREE.Mesh(geometry, material);
+                scene.add(filamentMesh);
+
+                const starGeo = new THREE.BufferGeometry();
+                const starCount = 2000;
+                const posArray = new Float32Array(starCount * 3);
+                for (let i = 0; i < starCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 20;
+                starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+                scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+                    size: 0.015, color: 0x38bdf8, transparent: true, opacity: 0.4
+                })));
+
+                function animate(time) {
+                    requestAnimationFrame(animate);
+                    const t = (time || 0) * 0.001;
+                    filamentMesh.material.uniforms.uTime.value = t;
+                    filamentMesh.material.uniforms.uRisk.value = state.derived.insurabilityIndex;
+                    const rot = 0.2 + (1.0 - state.derived.insurabilityIndex) * 0.5;
+                    filamentMesh.rotation.x = t * rot * 0.5;
+                    filamentMesh.rotation.y = t * rot;
+                    renderer.render(scene, camera);
+                }
+                function onResize() {
+                    const w = Math.max(1, window.innerWidth);
+                    const h = Math.max(1, window.innerHeight);
+                    camera.aspect = w / h;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(w, h);
+                }
+                window.addEventListener('resize', onResize);
+                // Defer first sizing to the next frame — belt-and-suspenders for embeds where
+                // the container's layout hasn't resolved by the time boot() runs.
+                requestAnimationFrame(onResize);
+                animate();
+                return true;
+            } catch (e) {
+                console.warn('[Nexus] WebGL init failed, falling back to 2D:', e);
+                if (renderer && renderer.domElement) renderer.domElement.remove();
+                return false;
+            }
+        }
+
+        function init2DFallback() {
+            document.getElementById('canvas-container').hidden = true;
+            const cv = document.getElementById('canvas-2d');
+            cv.hidden = false;
+            function size() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+            size(); window.addEventListener('resize', size);
+            const ctx = cv.getContext('2d');
+            function draw() {
+                requestAnimationFrame(draw);
+                ctx.fillStyle = 'rgba(3,7,18,0.25)';
+                ctx.fillRect(0, 0, cv.width, cv.height);
+                const buf = KafCade.snapshot();
+                if (!buf.length) return;
+                const w = cv.width, h = cv.height;
+                ctx.strokeStyle = state.derived.insurabilityIndex < 0.4 ? '#ef4444'
+                                 : state.derived.insurabilityIndex < 0.65 ? '#f59e0b' : '#06b6d4';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                buf.forEach((v, i) => {
+                    const x = (i / (buf.length - 1 || 1)) * w;
+                    const y = h - (v * h * 0.6) - h * 0.2;
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+            draw();
+        }
+
+        // ---------- Interaction ---------- //
+
+        function bindSlider(id, key, fmt) {
+            const s = document.getElementById(id);
+            const v = document.getElementById(id.replace('-slider', '-val'));
+            s.addEventListener('input', () => {
+                state.inputs[key] = parseFloat(s.value);
+                v.textContent = fmt(state.inputs[key]);
+                recompute();
+            });
+        }
+
+        function appendChat(text, kind) {
+            const feed = document.getElementById('chat-feed');
+            const cls = kind === 'user'
+                ? 'bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-700/40 text-cyan-100 font-mono text-[11px]'
+                : 'bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 text-slate-200 text-xs';
+            feed.appendChild(el('div', { class: cls, text: kind === 'user' ? '> ' + text : text }));
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function concierge(query) {
+            const ii = state.derived.insurabilityIndex;
+            const win = KafCade.snapshot();
+            const trend = win.length > 4 ? (win[win.length - 1] - win[0]).toFixed(2) : '0.00';
+            const q = query.toLowerCase();
+            if (q.includes('bond') || q.includes('resilience')) {
+                return 'Given current II=' + ii.toFixed(2) + ' and Δtrajectory=' + trend + ', I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
+            }
+            if (q.includes('mortgage') || q.includes('default')) {
+                return 'Insurance capacity below 0.60 correlates with ~14% incremental default probability on 30yr mortgages. Current II=' + ii.toFixed(2) + '. Portfolio-level detail: request an Asset Vulnerability Assessment.';
+            }
+            if (q.includes('exit') || q.includes('flight')) {
+                return 'Primary carrier exit typically begins ~3.5yr before II crosses 0.4. Current trend=' + trend + '. Sustained negative trend triggers bifurcation flag.';
+            }
+            if (ii < 0.4) {
+                return 'Diagnostic alert: at II=' + ii.toFixed(2) + ', primary carriers exit. Recommend federal resilience reinsurance backstop or mandatory municipal hardening.';
+            }
+            return 'System response: query evaluated against current state (climate forcing ' + state.inputs.frequency.toFixed(1) + 'x, adaptation ' + state.inputs.adaptation.toFixed(2) + '). Insurability holding at ' + ii.toFixed(2) + '.';
+        }
+
+        // ---------- Modal system (accessible; focus trapped; Escape closes) ---------- //
+
+        let lastFocus = null;
+        function openModal(node) {
+            lastFocus = document.activeElement;
+            const backdrop = el('div', { class: 'nx-modal-backdrop', role: 'dialog', 'aria-modal': 'true' });
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+            backdrop.appendChild(node);
+            document.body.appendChild(backdrop);
+            const first = node.querySelector('input, button, select, textarea');
+            if (first) first.focus();
+            function onKey(e) {
+                if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', onKey); }
+            }
+            document.addEventListener('keydown', onKey);
+        }
+        function closeModal() {
+            const b = document.querySelector('.nx-modal-backdrop');
+            if (b) b.remove();
+            if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+
+        function makeModal(title, bodyNode, actions) {
+            const card = el('div', {
+                class: 'glass-card p-6 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4'
+            }, [
+                el('div', { class: 'flex justify-between items-start' }, [
+                    el('h3', { class: 'text-lg font-bold text-cyan-300', text: title }),
+                    el('button', {
+                        class: 'text-slate-400 hover:text-slate-100 text-2xl leading-none',
+                        'aria-label': 'Close', onclick: closeModal, text: '×'
+                    })
+                ]),
+                bodyNode,
+                el('div', { class: 'flex justify-end gap-2 pt-2' }, actions || [])
+            ]);
+            return card;
+        }
+
+        // ---------- Commercial pipeline handlers ---------- //
+
+        function openAssessment() {
+            const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
+            const nameI = el('input', { type: 'text', required: true, maxlength: 80, placeholder: 'Full name',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            const emailI = el('input', { type: 'email', required: true, maxlength: 120, placeholder: 'Work email',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            const companyI = el('input', { type: 'text', required: true, maxlength: 100, placeholder: 'Company / municipality',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            const zipI = el('input', { type: 'text', required: true, maxlength: 10, placeholder: 'Portfolio ZIP (e.g. 33139)',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            form.append(nameI, emailI, companyI, zipI);
+
+            const submit = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: 'Generate Report' });
+            const body = el('div', { class: 'space-y-3' }, [
+                el('p', { class: 'text-xs text-slate-400', text: 'We compute a portfolio-level insurability score using your current CAS parameters. Report is generated locally and downloadable as HTML.' }),
+                form
+            ]);
+            const modal = makeModal('Asset Vulnerability Assessment', body, [
+                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
+                submit
+            ]);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const lead = {
+                    name: nameI.value.trim(), email: emailI.value.trim(),
+                    company: companyI.value.trim(), zip: zipI.value.trim(),
+                    capturedAt: nowIso()
+                };
+                submit.disabled = true;
+                submit.textContent = 'Generating…';
+                deliverLead(lead, 'assessment').finally(() => {
+                    const report = buildAssessmentReport(lead, state);
+                    download('nexus-assessment-' + lead.zip + '.html', 'text/html', report);
+                    KafCa.publish('commerce.lead.captured', { kind: 'assessment', lead: { email: lead.email, company: lead.company, zip: lead.zip } });
+                    closeModal();
+                    appendChat('Report generated for ' + lead.company + ' (ZIP ' + lead.zip + '). We\'ll follow up at ' + lead.email + '.', 'ai');
+                });
+            });
+
+            openModal(modal);
+        }
+
+        function openBond() {
+            const cfg = Config.load();
+            const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
+            const emailI = el('input', { type: 'email', required: true, maxlength: 120, placeholder: 'Work email',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            const notionalI = el('input', { type: 'number', required: true, min: '100000', max: '1000000000', step: '100000', value: '10000000', placeholder: 'Notional (USD)',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            const maturityI = el('input', { type: 'number', required: true, min: '1', max: '30', value: '5', placeholder: 'Maturity (yrs)',
+                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+            form.append(emailI, notionalI, maturityI);
+
+            const gate = cfg.activated
+                ? 'You\'re on Pro — spec is unlocked instantly.'
+                : 'Free preview generates a redacted spec. Full spec unlocks after Pro activation (' + esc(cfg.bondPrice) + ').';
+
+            const primary = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: cfg.activated ? 'Generate Full Spec' : 'Generate Preview' });
+            const buyBtn = cfg.stripeBondUrl && !cfg.activated
+                ? el('a', { href: cfg.stripeBondUrl, target: '_blank', rel: 'noopener noreferrer',
+                    class: 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider', text: 'Unlock ' + cfg.bondPrice })
+                : null;
+
+            const body = el('div', { class: 'space-y-3' }, [
+                el('p', { class: 'text-xs text-slate-400', text: gate }),
+                form
+            ]);
+            const modal = makeModal('Resilience Bond Specification', body, [
+                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
+                buyBtn,
+                primary
+            ].filter(Boolean));
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const lead = { email: emailI.value.trim(), notional: parseFloat(notionalI.value), maturity: parseInt(maturityI.value, 10), capturedAt: nowIso() };
+                primary.disabled = true;
+                primary.textContent = 'Generating…';
+                deliverLead({ email: lead.email }, 'bond').finally(() => {
+                    const spec = buildBondSpec(lead, state, Config.load().activated);
+                    download('nexus-bond-' + Date.now() + '.html', 'text/html', spec);
+                    KafCa.publish('commerce.bond.generated', { notional: lead.notional, maturity: lead.maturity });
+                    closeModal();
+                    appendChat('Bond spec drafted (notional $' + lead.notional.toLocaleString() + ', ' + lead.maturity + 'yr). ' + (Config.load().activated ? 'Full parametric triggers included.' : 'Preview only — activate Pro for triggers.'), 'ai');
+                });
+            });
+
+            openModal(modal);
+        }
+
+        function openExport() {
+            const cfg = Config.load();
+            if (!cfg.activated) {
+                const body = el('div', { class: 'space-y-3' }, [
+                    el('p', { class: 'text-sm text-slate-300', text: 'Trajectory export is a Pro capability. Your session data continues accumulating either way — activate Pro when you\'re ready to export it.' }),
+                    el('p', { class: 'text-xs text-slate-500', text: 'Session id: ' + EvoMetaClaw.sessionId + ' · ' + EvoMetaClaw.snapshot().events.length + ' events recorded.' })
+                ]);
+                const buy = cfg.stripeProUrl
+                    ? el('a', { href: cfg.stripeProUrl, target: '_blank', rel: 'noopener noreferrer',
+                        class: 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider', text: 'Activate Pro ' + cfg.proPrice })
+                    : el('button', { class: 'px-4 py-2 text-slate-400 text-xs', text: 'Configure Stripe first (gear icon)', onclick: closeModal });
+                openModal(makeModal('Export Trajectory Data', body, [
+                    el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Close', onclick: closeModal }),
+                    buy
+                ]));
+                return;
+            }
+            const snap = EvoMetaClaw.export();
+            download('nexus-trajectory-' + snap.id + '.json', 'application/json', JSON.stringify(snap, null, 2));
+            appendChat('Exported ' + snap.events.length + ' trajectory events (seal ' + snap.seal + '). Ledger integrity is verifiable via checksum.', 'ai');
+        }
+
+        function openConfig() {
+            const cfg = Config.load();
+            const form = el('form', { class: 'space-y-3' });
+            const fields = [
+                ['stripeBondUrl', 'Stripe Payment Link — Bond Spec', 'https://buy.stripe.com/...', 'url'],
+                ['stripeProUrl', 'Stripe Payment Link — Pro', 'https://buy.stripe.com/...', 'url'],
+                ['leadWebhook', 'Lead capture webhook (POST JSON)', 'https://your.crm/webhook', 'url'],
+                ['bondPrice', 'Bond spec display price', '$99', 'text'],
+                ['proPrice', 'Pro display price', '$29/mo', 'text']
+            ];
+            const inputs = {};
+            fields.forEach(([k, label, ph, type]) => {
+                const i = el('input', { type: type, value: cfg[k] || '', placeholder: ph, maxlength: 200,
+                    class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
+                inputs[k] = i;
+                form.append(el('label', { class: 'block space-y-1' }, [
+                    el('span', { class: 'text-xs text-slate-400', text: label }),
+                    i
+                ]));
+            });
+            const activated = el('input', { type: 'checkbox', class: 'mr-2', checked: cfg.activated });
+            form.append(el('label', { class: 'flex items-center text-xs text-slate-300' }, [
+                activated,
+                document.createTextNode(' Pro activated (auto-set when Stripe redirects back with ?activated=1)')
+            ]));
+
+            const save = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: 'Save' });
+            const modal = makeModal('Configuration', form, [
+                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
+                save
+            ]);
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const patch = { activated: activated.checked };
+                Object.keys(inputs).forEach(k => { patch[k] = inputs[k].value.trim(); });
+                Config.save(patch);
+                applyActivationState();
+                closeModal();
+                appendChat('Configuration saved. Payment links and webhook are live.', 'ai');
+            });
+            openModal(modal);
+        }
+
+        // Fire-and-forget lead delivery. Webhook is best-effort — if it fails, mailto fallback is offered inline.
+        async function deliverLead(lead, kind) {
+            const cfg = Config.load();
+            if (!cfg.leadWebhook) return;
+            try {
+                await fetch(cfg.leadWebhook, {
+                    method: 'POST', mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kind, lead, session: EvoMetaClaw.sessionId, at: nowIso() })
+                });
+            } catch (e) {
+                console.warn('[Nexus] Lead webhook failed; capture stored locally.', e);
+            }
+        }
+
+        function buildAssessmentReport(lead, state) {
+            const ii = state.derived.insurabilityIndex;
+            const grade = ii >= 0.7 ? 'A' : ii >= 0.55 ? 'B' : ii >= 0.4 ? 'C' : 'D';
+            const recs = ii < 0.5
+                ? '<li>Immediate capital rotation from Tier-1 coastal exposure</li><li>Parametric bond wrapper on core assets</li><li>Reinsurance backstop renegotiation within 90 days</li>'
+                : '<li>Hardening capex prioritized on top-quartile fragility assets</li><li>Rolling reinsurance capacity review each 12mo</li><li>Monitor II<sub>t</sub> for cross-threshold events</li>';
+            return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Assessment ${escapeAttr(lead.company)}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
+h1{color:#0891b2;margin-bottom:0}.grade{font-size:64px;font-weight:900;color:${ii<0.5?'#dc2626':'#0891b2'}}
+table{width:100%;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
+.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
+<body>
+<h1>Asset Vulnerability Assessment</h1>
+<p style="color:#64748b">Prepared for ${escapeHtml(lead.company)} · ZIP ${escapeHtml(lead.zip)} · ${escapeHtml(todayLocalIso())}</p>
+<div class="grade">${grade}</div>
+<p>Insurability Index (II<sub>t</sub>): <strong>${ii.toFixed(2)}</strong> — <em>${ii>=0.65?'Stable':ii>=0.4?'Elevated Risk':'Critical Bifurcation'}</em></p>
+<table>
+<tr><th>Signal</th><th>Value</th></tr>
+<tr><td>Climate Forcing (f<sub>t</sub>)</td><td>${state.inputs.frequency.toFixed(2)}x</td></tr>
+<tr><td>Adaptation Budget (A<sub>t</sub>)</td><td>${state.inputs.adaptation.toFixed(2)}</td></tr>
+<tr><td>Reinsurance Backstop (R<sub>t</sub>)</td><td>${state.inputs.reinsurance.toFixed(2)}</td></tr>
+<tr><td>Derived Fragility</td><td>${state.derived.fragility.toFixed(2)}</td></tr>
+<tr><td>Implied Premium Multiplier</td><td>${state.derived.premium.toFixed(2)}</td></tr>
+</table>
+<h2>Recommended Interventions</h2>
+<ol>${recs}</ol>
+<div class="foot">Contact: ${escapeHtml(lead.name)} &lt;${escapeHtml(lead.email)}&gt; · Session ${escapeHtml(EvoMetaClaw.sessionId)}<br>
+Singularity Nexus · CAS Predictive Risk Intelligence Platform · © 2026<br>
+This report reflects current session parameters. Live monitoring available under Pro.</div>
+</body></html>`;
+        }
+
+        function buildBondSpec(lead, state, unlocked) {
+            const trigger = clamp(state.derived.insurabilityIndex - 0.10, 0.20, 0.60).toFixed(2);
+            const coupon = (0.04 + state.derived.fragility * 0.06).toFixed(4);
+            const payout = unlocked ? '100% notional if II<sub>t</sub> &lt; ' + trigger + ' for 30 consecutive trading days' : '<em>[REDACTED — Pro only]</em>';
+            const triggers = unlocked ? '<ul><li>Primary: II<sub>t</sub> monitoring via Nexus API</li><li>Secondary: NOAA county-level wind speed &gt; SS-Cat 3</li><li>Tertiary: Reinsurance capacity index &lt; 0.30</li></ul>' : '<em>[REDACTED — Pro only]</em>';
+            return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Resilience Bond Spec</title>
+<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
+h1{color:#0891b2}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
+.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
+<body>
+<h1>Resilience Bond Specification</h1>
+<p style="color:#64748b">Draft · ${escapeHtml(todayLocalIso())} · Recipient ${escapeHtml(lead.email)}</p>
+<table>
+<tr><th>Term</th><th>Value</th></tr>
+<tr><td>Notional</td><td>$${lead.notional.toLocaleString()}</td></tr>
+<tr><td>Maturity</td><td>${lead.maturity} years</td></tr>
+<tr><td>Coupon (annual)</td><td>${coupon}</td></tr>
+<tr><td>Trigger Level (II<sub>t</sub>)</td><td>${trigger}</td></tr>
+<tr><td>Payout</td><td>${payout}</td></tr>
+</table>
+<h2>Trigger Cascade</h2>
+${triggers}
+<div class="foot">Draft only — not an offering document. Session ${escapeHtml(EvoMetaClaw.sessionId)}.<br>
+Singularity Nexus · © 2026</div>
+</body></html>`;
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function escapeAttr(s) { return escapeHtml(s); }
+
+        function applyActivationState() {
+            const cfg = Config.load();
+            document.getElementById('activation-chip').hidden = !cfg.activated;
+            const bp = document.getElementById('bond-price-chip');
+            const ep = document.getElementById('export-price-chip');
+            if (cfg.activated) {
+                bp.textContent = 'Pro';
+                bp.className = 'text-[10px] font-mono text-emerald-400';
+                ep.textContent = 'Ready';
+                ep.className = 'text-[10px] font-mono text-emerald-400';
+            } else {
+                bp.textContent = cfg.bondPrice;
+                bp.className = 'text-[10px] font-mono text-amber-400';
+                ep.textContent = cfg.proPrice;
+                ep.className = 'text-[10px] font-mono text-amber-400';
+            }
+        }
+
+        // ---------- Boot ---------- //
+
+        function boot() {
+            document.getElementById('footer-session').textContent = 'Session ' + EvoMetaClaw.sessionId;
+            bindSlider('freq-slider', 'frequency', v => v.toFixed(1) + 'x');
+            bindSlider('adapt-slider', 'adaptation', v => v.toFixed(2));
+            bindSlider('rein-slider', 'reinsurance', v => v.toFixed(2));
+
+            document.getElementById('audit-btn').addEventListener('click', () => {
+                const s = state.derived;
+                const primaryDriver = state.inputs.frequency > 2.0 ? 'Accelerated Climate Event Frequency' : 'Reinsurance Capacity Limits';
+                appendChat('Executive audit — II<sub>t</sub>=' + s.insurabilityIndex.toFixed(2) + '. Primary driver: ' + primaryDriver + '. Recommended: Parametric Resilience Bonds to close the Infrastructure Maintenance Gap.', 'ai');
+                KafCa.publish('ui.audit.requested', { state: s });
+            });
+            document.getElementById('assess-btn').addEventListener('click', openAssessment);
+            document.getElementById('bond-btn').addEventListener('click', openBond);
+            document.getElementById('export-btn').addEventListener('click', openExport);
+            document.getElementById('config-btn').addEventListener('click', openConfig);
+
+            document.getElementById('chat-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+                appendChat(text, 'user');
+                input.value = '';
+                setTimeout(() => appendChat(concierge(text), 'ai'), 350);
+            });
+
+            // Renderer selection with graceful fallback if THREE fails.
+            const webglOk = initWebGL();
+            if (!webglOk) init2DFallback();
+
+            applyActivationState();
+            recompute();
+        }
+
+        // Boot as soon as DOM is parsed; scripts sit at bottom of body so this is safe.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else {
+            boot();
+        }
+    })();
+    </script>
+</body>
+</html>

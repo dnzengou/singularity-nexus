@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Basic HTML sanity check
+        run: |
+          # Fail if index.html is missing or empty
+          test -s index.html || { echo "index.html missing or empty"; exit 1; }
+          # Warn on likely-broken interpolation markers
+          if grep -nE '\{\{[^}]+\}\}|\$\{[^}]+\}' index.html | grep -v 'escapeHtml\|toFixed\|toLocaleString\|Date\.\|todayLocalIso\|nowIso\|ii\.\|state\.\|lead\.\|snap\.'; then
+            echo "::warning::Found suspicious unresolved template markers"
+          fi
+          # Fail on the two hardcoded UTC-drift patterns kafcade v3.2 flags
+          if grep -n 'toISOString()\.slice(0,10)\|toISOString()\.slice(0, 10)' index.html; then
+            echo "::error::UTC-drift antipattern present — use todayLocalIso()"
+            exit 1
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
