@@ -301,7 +301,7 @@
         }
         function nowIso() { return new Date().toISOString(); }
         // Local date string YYYY-MM-DD — avoids UTC boundary drift for users west of UTC
-        // where toISOString().slice(0,10) rolls to tomorrow after ~19:00 local time.
+        // where a plain ISO substring rolls to tomorrow after ~19:00 local time.
         function todayLocalIso() {
             const d = new Date();
             const p = n => (n < 10 ? '0' : '') + n;
