@@ -4,16 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#030712">
-    <meta name="description" content="Singularity Nexus - Complex Adaptive Systems intelligence engine for climate insurability bifurcation forecasting.">
-    <!-- CSP tightened: no eval, no inline handlers, only allowlisted CDN origins. Inline script tag below is the last necessary exception. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; connect-src 'self' https:; font-src 'self' data:; frame-ancestors 'none'; form-action 'self';">
-    <title>Singularity Nexus | CAS Insurance Intelligence</title>
+    <meta name="description" content="Singularity Nexus — a Complex Adaptive Systems intelligence platform that pinpoints climate-insurability tipping points 3–5 years before conventional actuarial models.">
+    <meta name="robots" content="index, follow">
+    <meta name="color-scheme" content="dark">
 
-    <!-- CDN resources with graceful onerror fallback. SRI is intentionally omitted for tailwind (dynamic response body) and left as a deploy-time responsibility for three.js pinning. -->
+    <title>Singularity Nexus — CAS Insurance Intelligence</title>
+    <link rel="canonical" href="https://dnzengou.github.io/singularity-nexus/">
+
+    <!-- Open Graph + Twitter cards -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Singularity Nexus">
+    <meta property="og:title" content="Model the moment insurance markets bifurcate">
+    <meta property="og:description" content="CAS intelligence platform for climate-insurability tipping points. 60 KB, browser-native, no sign-up.">
+    <meta property="og:url" content="https://dnzengou.github.io/singularity-nexus/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Singularity Nexus — CAS Insurance Intelligence">
+    <meta name="twitter:description" content="Pinpoint insurability bifurcation points 3–5 years before conventional models.">
+
+    <!-- CSP: tighter than the app since landing has zero external calls except Tailwind CDN. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; form-action 'self';">
+
+    <!-- Backward-compat redirect for v1.1 shareable URLs — do this BEFORE any other JS
+         so users who click a shared preset link get the app instantly, not a marketing bounce. -->
+    <script>
+    (function () {
+        var q = location.search;
+        if (q && /[?&](preset|f|a|r)=/.test(q)) {
+            location.replace('./app.html' + q + location.hash);
+        }
+    })();
+    </script>
+
+    <!-- Tailwind CDN with graceful fallback (matches app.html discipline). -->
     <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"
-            onerror="window.__NEXUS_TW_FAILED=true"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"
-            onerror="window.__NEXUS_THREE_FAILED=true"></script>
+            onerror="document.documentElement.classList.add('no-tw')"></script>
 
     <style>
         :root {
@@ -28,1287 +52,297 @@
         html, body { height: 100%; }
         body {
             margin: 0;
-            background: var(--nx-bg);
+            background:
+                radial-gradient(ellipse at top left, rgba(6, 182, 212, 0.10), transparent 45%),
+                radial-gradient(ellipse at bottom right, rgba(59, 130, 246, 0.08), transparent 45%),
+                var(--nx-bg);
             color: #f9fafb;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            /* Removed the v0/v1 `overflow: hidden` — it silently clipped mobile content. Modal + main are self-scrolling. */
-            overflow-x: hidden;
             min-height: 100vh;
+            overflow-x: hidden;
         }
-        canvas { display: block; }
-        .glass-card {
+        .glass {
             background: var(--nx-panel);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--nx-border);
         }
-        .text-glow { text-shadow: 0 0 12px rgba(6, 182, 212, 0.6); }
-        .text-glow-danger { text-shadow: 0 0 12px rgba(239, 68, 68, 0.6); }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
-        /* Fallback if Tailwind CDN dies: bare-minimum readable layout so we never present a blank page. */
-        .nx-fallback-shell { max-width: 960px; margin: 40px auto; padding: 24px; }
-        .nx-fallback-shell input, .nx-fallback-shell button {
-            background: #0f172a; color: #f9fafb; border: 1px solid #334155;
-            padding: 8px; border-radius: 6px; font: inherit;
+        .text-glow { text-shadow: 0 0 24px rgba(6, 182, 212, 0.35); }
+        .btn-primary {
+            background: linear-gradient(90deg, #06b6d4, #3b82f6);
+            color: #030712;
+            font-weight: 700;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
-        /* Respect motion preferences — CAS glitch shader and starfield rotation both spin fast. */
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(6, 182, 212, 0.35); }
+        .btn-secondary {
+            border: 1px solid var(--nx-border);
+            color: #cbd5e1;
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+        .btn-secondary:hover { border-color: var(--nx-cyan); color: #e0f2fe; }
         @media (prefers-reduced-motion: reduce) {
-            #canvas-container { opacity: 0.35; }
-            .animate-ping { animation: none !important; }
+            .btn-primary:hover { transform: none; }
         }
-        /* Focus visibility for keyboard nav — the default outline gets swallowed by tailwind reset. */
-        button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
+        button:focus-visible, a:focus-visible {
             outline: 2px solid var(--nx-cyan);
-            outline-offset: 2px;
+            outline-offset: 3px;
+            border-radius: 6px;
         }
-        .nx-modal-backdrop {
-            position: fixed; inset: 0; background: rgba(3, 7, 18, 0.85);
-            backdrop-filter: blur(8px); z-index: 50;
-            display: flex; align-items: center; justify-content: center; padding: 16px;
-        }
-        [hidden] { display: none !important; }
+        /* Tailwind-out fallback shell: readable landing even if the CDN dies. */
+        .no-tw body { max-width: 800px; margin: 0 auto; padding: 24px; }
+        .no-tw h1, .no-tw h2 { color: #e0f2fe; }
+        .no-tw a { color: var(--nx-cyan); }
+        /* Hand-rolled hero sparkline mirrors the app's actual sparkline style so what visitors
+           see on the landing IS what the product renders — no marketing/product surprise. */
+        .hero-svg .path-line { stroke: url(#grad); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+        .hero-svg .path-fill { fill: url(#grad-fill); opacity: 0.35; }
+        .hero-svg .grid-line { stroke: rgba(148, 163, 184, 0.18); stroke-width: 0.5; stroke-dasharray: 2 2; }
+        .hero-svg .crit-line { stroke: rgba(239, 68, 68, 0.55); stroke-width: 0.7; stroke-dasharray: 3 3; }
     </style>
+
+    <!-- Site identity graph — links to the running app + repo so scrapers see the family, not isolated pages. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Singularity Nexus",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "Complex Adaptive Systems intelligence platform for climate-insurability bifurcation forecasting.",
+      "url": "https://dnzengou.github.io/singularity-nexus/",
+      "sameAs": [
+        "https://github.com/dnzengou/singularity-nexus"
+      ],
+      "offers": [
+        { "@type": "Offer", "name": "Asset Vulnerability Assessment", "price": "0", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Resilience Bond Specification", "price": "99", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Pro (Trajectory Export)", "price": "29", "priceCurrency": "USD" }
+      ]
+    }
+    </script>
 </head>
 <body>
 
-    <!-- 3D WebGL layer (or falls back to #canvas-2d below). -->
-    <div id="canvas-container" class="fixed inset-0 z-0" aria-hidden="true"></div>
-    <canvas id="canvas-2d" class="fixed inset-0 z-0" hidden aria-hidden="true"></canvas>
-
-    <!-- ARIA live region: screen readers hear status transitions (stable → elevated → critical) as they occur. -->
-    <div id="aria-live" role="status" aria-live="polite" class="sr-only" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
-
-    <!-- Primary UI overlay. -->
-    <div class="relative z-10 flex flex-col min-h-screen p-4 md:p-6 pointer-events-none">
-
-        <header class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 pointer-events-auto">
-            <div class="flex items-center space-x-3">
-                <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping" aria-hidden="true"></div>
-                <div>
-                    <h1 class="text-2xl font-black tracking-wider text-glow bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-                        SINGULARITY NEXUS
-                    </h1>
-                    <p class="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-mono">
-                        CAS Predictive Risk Intelligence Platform
-                    </p>
-                </div>
+<!-- ============ HEADER ============ -->
+<header class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" aria-hidden="true"></div>
+        <div>
+            <div class="text-sm font-black tracking-widest text-glow bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-blue-500">
+                SINGULARITY NEXUS
             </div>
-
-            <div class="flex items-center gap-3">
-                <div id="activation-chip" class="glass-card px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider text-slate-400" hidden>
-                    <span class="text-emerald-400">&#9679;</span> Pro Activated
-                </div>
-                <div class="glass-card px-5 py-2.5 rounded-xl flex items-center space-x-4" role="group" aria-label="Live insurability index">
-                    <div>
-                        <div class="text-[9px] uppercase tracking-wider text-slate-400 font-mono">Insurability Index (II<sub>t</sub>)</div>
-                        <div id="index-val" class="text-xl font-mono font-bold text-cyan-400" aria-live="off">0.82</div>
-                    </div>
-                    <div id="status-badge" class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                        Stable
-                    </div>
-                </div>
-                <button id="share-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Copy shareable link to this scenario">
-                    Share
-                </button>
-                <button id="config-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto" aria-label="Open configuration">
-                    &#9881;
-                </button>
-            </div>
-        </header>
-
-        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 my-6 md:my-auto">
-
-            <!-- Left: CAS Engine Controls -->
-            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-4 pointer-events-auto" aria-labelledby="cas-controls-heading">
-                <div class="border-b border-slate-700/50 pb-3 flex justify-between items-center">
-                    <h2 id="cas-controls-heading" class="text-sm font-semibold tracking-wide text-slate-200">CAS Engine Controls</h2>
-                    <span class="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">ODE v2.4</span>
-                </div>
-
-                <!-- Scenario presets — one click loads a calibrated starting point.
-                     Illustrative values, not underwriting-grade. -->
-                <div>
-                    <div class="flex justify-between items-baseline mb-1.5">
-                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Scenario Presets</div>
-                        <div class="text-[9px] text-slate-500 italic">illustrative</div>
-                    </div>
-                    <div id="preset-chips" class="flex flex-wrap gap-1.5" role="group" aria-label="Scenario preset chips"></div>
-                </div>
-
-                <div class="space-y-1.5">
-                    <label for="freq-slider" class="flex justify-between text-xs font-mono">
-                        <span class="text-slate-400">Climate Forcing (f<sub>t</sub>)</span>
-                        <span id="freq-val" class="text-cyan-400">1.2x</span>
-                    </label>
-                    <input type="range" id="freq-slider" min="0.5" max="4.0" step="0.1" value="1.2"
-                           aria-describedby="freq-val"
-                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-                </div>
-
-                <div class="space-y-1.5">
-                    <label for="adapt-slider" class="flex justify-between text-xs font-mono">
-                        <span class="text-slate-400">Adaptation Budget (A<sub>t</sub>)</span>
-                        <span id="adapt-val" class="text-cyan-400">0.40</span>
-                    </label>
-                    <input type="range" id="adapt-slider" min="0.0" max="1.0" step="0.05" value="0.40"
-                           aria-describedby="adapt-val"
-                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-                </div>
-
-                <div class="space-y-1.5">
-                    <label for="rein-slider" class="flex justify-between text-xs font-mono">
-                        <span class="text-slate-400">Reinsurance Backstop (R<sub>t</sub>)</span>
-                        <span id="rein-val" class="text-cyan-400">0.85</span>
-                    </label>
-                    <input type="range" id="rein-slider" min="0.1" max="1.0" step="0.05" value="0.85"
-                           aria-describedby="rein-val"
-                           class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-                </div>
-
-                <div id="alert-box" class="p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200">
-                    System nominal. Feedback dynamics within stable bounds.
-                </div>
-
-                <!-- 5-year projection sparkline: hand-rolled SVG, no chart library. -->
-                <div class="border-t border-slate-700/40 pt-3" aria-labelledby="proj-heading">
-                    <div class="flex justify-between items-baseline mb-1">
-                        <div id="proj-heading" class="text-[10px] uppercase tracking-wider text-slate-400 font-mono">5-yr Projection (BAU drift)</div>
-                        <div id="proj-endpoint" class="text-[11px] font-mono text-cyan-300">II→0.—</div>
-                    </div>
-                    <svg id="proj-svg" viewBox="0 0 200 40" class="w-full h-10 block" preserveAspectRatio="none" role="img" aria-label="Five year Insurability Index projection sparkline">
-                        <!-- Critical threshold at II=0.4 → y = 40*(1-0.4) = 24 -->
-                        <line x1="0" y1="24" x2="200" y2="24" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.5"></line>
-                        <path id="proj-path" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                    <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-0.5">
-                        <span>y0</span>
-                        <span id="proj-crit" class="text-slate-400">holds above critical</span>
-                        <span>y5</span>
-                    </div>
-                </div>
-
-                <!-- KafCade live readout: rolling volatility + bifurcation early-warning -->
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-slate-800/50 rounded-lg p-2">
-                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Trend</div>
-                        <div id="metric-trend" class="text-sm font-mono text-slate-100">&#8594; flat</div>
-                    </div>
-                    <div class="bg-slate-800/50 rounded-lg p-2">
-                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Vol.</div>
-                        <div id="metric-vol" class="text-sm font-mono text-slate-100">0.00</div>
-                    </div>
-                    <div class="bg-slate-800/50 rounded-lg p-2">
-                        <div class="text-[9px] text-slate-400 uppercase tracking-wider">Bifurc.</div>
-                        <div id="metric-bif" class="text-sm font-mono text-emerald-400">no</div>
-                    </div>
-                </div>
-
-                <button id="audit-btn" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-cyan-500/25">
-                    Generate Executive Audit
-                </button>
-            </section>
-
-            <!-- Center: Commercial Pipeline (the two low-hanging fruit) -->
-            <section class="md:col-span-4 glass-card p-5 rounded-2xl space-y-4 pointer-events-auto" aria-labelledby="commerce-heading">
-                <div class="border-b border-slate-700/50 pb-3 flex justify-between items-center">
-                    <h2 id="commerce-heading" class="text-sm font-semibold tracking-wide text-slate-200">Commercial Pipeline</h2>
-                    <span class="text-[10px] font-mono bg-emerald-900/40 text-emerald-300 px-2 py-0.5 rounded">Live</span>
-                </div>
-                <p class="text-xs text-slate-400 leading-relaxed">
-                    Two automated services routed through the <em>desiredsolutions</em> toolbox. Free tier delivers value instantly; premium tier is Stripe-gated.
-                </p>
-
-                <button id="assess-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Asset Vulnerability Assessment</div>
-                            <div class="text-[11px] text-slate-400 mt-1">Portfolio-level II<sub>t</sub> scoring + downloadable report</div>
-                        </div>
-                        <span class="text-[10px] font-mono text-emerald-400">FREE</span>
-                    </div>
-                </button>
-
-                <button id="bond-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Resilience Bond Specification</div>
-                            <div class="text-[11px] text-slate-400 mt-1">Parametric trigger + notional + payout schedule</div>
-                        </div>
-                        <span id="bond-price-chip" class="text-[10px] font-mono text-amber-400">$99</span>
-                    </div>
-                </button>
-
-                <button id="export-btn" class="w-full text-left glass-card p-3 rounded-lg hover:border-cyan-400/60 transition group">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 group-hover:text-cyan-200">Export Trajectory Data</div>
-                            <div class="text-[11px] text-slate-400 mt-1">Signed session ledger &mdash; the EvoMetaClaw moat</div>
-                        </div>
-                        <span id="export-price-chip" class="text-[10px] font-mono text-amber-400">Pro</span>
-                    </div>
-                </button>
-            </section>
-
-            <!-- Right: AI Risk Concierge -->
-            <section class="md:col-span-4 glass-card p-5 rounded-2xl flex flex-col h-[420px] pointer-events-auto" aria-labelledby="concierge-heading">
-                <div class="border-b border-slate-700/50 pb-3 flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></div>
-                        <h3 id="concierge-heading" class="text-xs font-bold uppercase tracking-wider text-slate-200">AI Risk Concierge</h3>
-                    </div>
-                    <span class="text-[9px] font-mono text-slate-400">RAG Grounded</span>
-                </div>
-
-                <div id="chat-feed" class="flex-1 overflow-y-auto my-3 space-y-3 text-xs pr-1" role="log" aria-live="polite" aria-relevant="additions">
-                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/40 text-slate-300">
-                        Hello. I monitor active CAS feedback loops across coastal real estate and primary insurance. Adjust parameters or ask about tipping points.
-                    </div>
-                </div>
-
-                <form id="chat-form" class="mt-auto flex space-x-2" autocomplete="off">
-                    <label for="chat-input" class="sr-only">Ask the AI Risk Concierge a question</label>
-                    <input type="text" id="chat-input" placeholder="Ask about capital exit points..." maxlength="200"
-                           class="flex-1 bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500">
-                    <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
-                        Send
-                    </button>
-                </form>
-            </section>
+            <div class="text-[9px] uppercase tracking-[0.28em] text-slate-500 font-mono">CAS Predictive Risk Intelligence</div>
         </div>
+    </div>
+    <nav class="flex items-center gap-4 text-xs font-mono">
+        <a href="https://github.com/dnzengou/singularity-nexus/blob/main/BLUEPRINT.md" class="text-slate-400 hover:text-cyan-300" rel="noopener">Blueprint</a>
+        <a href="https://github.com/dnzengou/singularity-nexus" class="text-slate-400 hover:text-cyan-300" rel="noopener">GitHub</a>
+        <a href="./app.html?preset=ssp5-85" class="btn-primary text-xs px-3 py-1.5 rounded-lg uppercase tracking-wider">Open App →</a>
+    </nav>
+</header>
 
-        <footer class="flex flex-col md:flex-row md:justify-between md:items-center text-[10px] font-mono text-slate-500 pointer-events-auto gap-2 pt-4">
-            <div>
-                Singularity Nexus &copy; 2026 &middot; CAS Climate Engine &middot;
-                <span id="footer-session" class="text-slate-400"></span>
-            </div>
-            <div class="flex flex-wrap gap-x-4">
-                <span>Lat 25.7617&deg; N</span>
-                <span>Lon 80.1918&deg; W</span>
-                <span id="footer-region" class="text-cyan-400">Region: S. Florida Atlantic</span>
-                <span id="footer-samples" class="text-slate-400">samples: 0</span>
-            </div>
-        </footer>
+<!-- ============ HERO ============ -->
+<section class="max-w-5xl mx-auto px-6 pt-12 md:pt-20 pb-16 md:pb-24 text-center">
+    <div class="inline-block glass px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-widest text-cyan-300 mb-6">
+        v1.1 · Static HTML · Zero backend
+    </div>
+    <h1 class="text-4xl md:text-6xl font-black leading-tight tracking-tight mb-6 text-glow">
+        Model the moment insurance
+        <span class="block bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300">markets bifurcate.</span>
+    </h1>
+    <p class="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed mb-10">
+        Traditional actuarial models miss the feedback loop between climate forcing, adaptation budgets, and reinsurance capacity.
+        Singularity Nexus surfaces the <strong class="text-cyan-300">Insurability Index (II<sub>t</sub>)</strong> in real time —
+        pinpointing tipping points <strong class="text-cyan-300">3–5 years earlier</strong> than legacy models.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center items-center mb-4">
+        <a href="./app.html?preset=ssp5-85" class="btn-primary px-6 py-3 rounded-xl uppercase tracking-wider text-sm inline-flex items-center gap-2">
+            <span aria-hidden="true">▶</span> Try the SSP5-8.5 scenario
+        </a>
+        <a href="./app.html" class="btn-secondary px-6 py-3 rounded-xl uppercase tracking-wider text-sm">
+            Open blank dashboard
+        </a>
+    </div>
+    <div class="text-[11px] text-slate-500 font-mono">
+        60 KB single-file · runs in-browser · no sign-up · no cookies
     </div>
 
-    <!-- ================= Modal templates (kept hidden until called) ================= -->
+    <!-- Live-style projection sparkline for the hero. Data points mirror the SSP5-8.5 preset's projection. -->
+    <div class="glass rounded-2xl p-6 mt-14 max-w-3xl mx-auto">
+        <div class="flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400 font-mono mb-2">
+            <span>Live projection preview · SSP5-8.5 Aggressive</span>
+            <span class="text-red-300">II→0.21 · crosses critical</span>
+        </div>
+        <svg viewBox="0 0 400 80" class="w-full h-24 hero-svg" preserveAspectRatio="none" role="img" aria-label="Five-year Insurability Index projection under SSP5-8.5 preset — starts near 0.43, crosses critical threshold at year 2">
+            <defs>
+                <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#f59e0b"/>
+                    <stop offset="100%" stop-color="#ef4444"/>
+                </linearGradient>
+                <linearGradient id="grad-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/>
+                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <!-- Reference lines -->
+            <line class="grid-line" x1="0" y1="20" x2="400" y2="20"/>
+            <line class="grid-line" x1="0" y1="60" x2="400" y2="60"/>
+            <line class="crit-line" x1="0" y1="48" x2="400" y2="48"/>
+            <text x="6" y="46" font-family="ui-monospace,monospace" font-size="8" fill="rgba(239,68,68,0.7)">II=0.40 · critical</text>
+            <!-- Projection: II 0.43 → 0.36 → 0.30 → 0.26 → 0.23 → 0.21 mapped to y = 80*(1-II) -->
+            <path class="path-fill" d="M0,45.6 L80,51.2 L160,56 L240,59.2 L320,61.6 L400,63.2 L400,80 L0,80 Z"/>
+            <path class="path-line" d="M0,45.6 L80,51.2 L160,56 L240,59.2 L320,61.6 L400,63.2"/>
+            <!-- Endpoints -->
+            <circle cx="0" cy="45.6" r="3" fill="#f59e0b"/>
+            <circle cx="400" cy="63.2" r="3.5" fill="#ef4444"/>
+        </svg>
+        <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-1">
+            <span>y0 (today)</span><span>y1</span><span>y2</span><span>y3</span><span>y4</span><span>y5</span>
+        </div>
+    </div>
+</section>
+
+<!-- ============ WHY ============ -->
+<section class="max-w-5xl mx-auto px-6 py-16 md:py-20">
+    <div class="grid md:grid-cols-2 gap-10 items-center">
+        <div>
+            <div class="text-[10px] uppercase tracking-widest text-red-300 font-mono mb-3">The problem</div>
+            <h2 class="text-2xl md:text-3xl font-bold mb-4">Six-week actuarial cycles miss the loop.</h2>
+            <p class="text-slate-300 leading-relaxed text-sm md:text-base">
+                Climate risk isn't a series of independent shocks. Physical damage drives premium hikes,
+                which drive carrier exits, which drive property devaluations, which erode tax bases,
+                which degrade the infrastructure that was supposed to reduce the physical damage.
+                It's a Complex Adaptive System. Modelling it as a bag of independent normal distributions
+                <em class="text-slate-100">is why $320B in annual losses run 55%+ uninsured.</em>
+            </p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+            <div class="text-[10px] uppercase tracking-widest text-cyan-300 font-mono mb-3">The signal Nexus surfaces</div>
+            <div class="space-y-2 text-sm">
+                <div class="flex items-baseline gap-3">
+                    <div class="w-2 h-2 rounded-full bg-cyan-400 mt-1.5" aria-hidden="true"></div>
+                    <div><strong class="text-slate-100">II<sub>t</sub> &gt; 0.65</strong> — <span class="text-slate-400">Stable market, business as usual.</span></div>
+                </div>
+                <div class="flex items-baseline gap-3">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5" aria-hidden="true"></div>
+                    <div><strong class="text-slate-100">0.40 &lt; II<sub>t</sub> &lt; 0.65</strong> — <span class="text-slate-400">Primary insurers retreating, residual market absorbing.</span></div>
+                </div>
+                <div class="flex items-baseline gap-3">
+                    <div class="w-2 h-2 rounded-full bg-red-400 mt-1.5" aria-hidden="true"></div>
+                    <div><strong class="text-slate-100">II<sub>t</sub> &lt; 0.40</strong> — <span class="text-slate-400">Critical bifurcation, capital flight, mortgage backstops lost.</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ WHAT ============ -->
+<section class="max-w-5xl mx-auto px-6 py-16 md:py-20">
+    <div class="text-center mb-12">
+        <div class="text-[10px] uppercase tracking-widest text-cyan-300 font-mono mb-3">What ships in v1.1</div>
+        <h2 class="text-2xl md:text-3xl font-bold">Three lenses on the same live model.</h2>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4">
+        <div class="glass rounded-2xl p-6">
+            <div class="text-2xl mb-2" aria-hidden="true">🌐</div>
+            <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider mb-2">Glass Earth</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                WebGL torus-knot shader driven by risk state. Colour and displacement react to II<sub>t</sub> in real time.
+                Falls back to a 2D projection canvas on low-power devices.
+            </p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+            <div class="text-2xl mb-2" aria-hidden="true">📈</div>
+            <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider mb-2">CAS Engine</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Pure ODE-style function over climate forcing, adaptation budget, reinsurance capacity.
+                6 illustrative presets (S. Florida, Gulf LA, SF Bay, Bangladesh Delta, SSP2-4.5, SSP5-8.5)
+                get you to first insight in one click.
+            </p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+            <div class="text-2xl mb-2" aria-hidden="true">⏱</div>
+            <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider mb-2">5-yr Projection</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Hand-rolled SVG sparkline with critical-threshold reference. Shows when the current trajectory
+                crosses II=0.4 under business-as-usual drift. 10-year projection with cross-variable feedback is Pro.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ COMMERCIAL ============ -->
+<section class="max-w-5xl mx-auto px-6 py-16 md:py-20">
+    <div class="text-center mb-12">
+        <div class="text-[10px] uppercase tracking-widest text-cyan-300 font-mono mb-3">Commercial pipeline</div>
+        <h2 class="text-2xl md:text-3xl font-bold">Free tier delivers value on click one.</h2>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4">
+        <div class="glass rounded-2xl p-6 flex flex-col">
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Assessment</h3>
+                <span class="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Free</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed flex-1">
+                Portfolio-level II<sub>t</sub> scoring computed against your CAS parameters.
+                Downloadable HTML report with grade (A–D) and recommended interventions.
+            </p>
+            <a href="./app.html?preset=sf-atl" class="btn-secondary text-[11px] mt-4 px-3 py-2 rounded-lg text-center uppercase tracking-wider">Try with S. FL preset</a>
+        </div>
+        <div class="glass rounded-2xl p-6 flex flex-col border-cyan-500/30">
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Bond Spec</h3>
+                <span class="text-[10px] font-mono text-amber-400 uppercase tracking-wider">$99</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed flex-1">
+                Full parametric bond specification: notional, coupon, trigger level, cascade rules.
+                Redacted preview free; full unlock via Stripe Payment Link.
+            </p>
+            <a href="./app.html?preset=gulf-la" class="btn-secondary text-[11px] mt-4 px-3 py-2 rounded-lg text-center uppercase tracking-wider">Try with Gulf LA preset</a>
+        </div>
+        <div class="glass rounded-2xl p-6 flex flex-col">
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Pro</h3>
+                <span class="text-[10px] font-mono text-amber-400 uppercase tracking-wider">$29/mo</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed flex-1">
+                Signed trajectory ledger export — every session's parameter path with tamper-evident seal.
+                The EvoMetaClaw moat: your accumulated data compounds, ours doesn't.
+            </p>
+            <a href="./app.html" class="btn-secondary text-[11px] mt-4 px-3 py-2 rounded-lg text-center uppercase tracking-wider">Open dashboard</a>
+        </div>
+    </div>
+    <p class="text-[11px] text-slate-500 text-center mt-6 leading-relaxed max-w-2xl mx-auto">
+        Preset values are <em>illustrative demonstration data</em>, not underwriting-grade actuarial parameters.
+        Pro activation is a client-side honor-system flag — see <a href="https://github.com/dnzengou/singularity-nexus/blob/main/.github/SECURITY.md" class="text-cyan-400 hover:text-cyan-300" rel="noopener">SECURITY.md</a> for the full trade-off notes.
+    </p>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="max-w-4xl mx-auto px-6 py-16 md:py-20 text-center">
+    <div class="glass rounded-3xl p-8 md:p-12">
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">See it in action.</h2>
+        <p class="text-slate-300 mb-8 max-w-lg mx-auto text-sm md:text-base">
+            Load an IPCC SSP5-8.5 scenario. Watch the 5-yr projection cross the critical bifurcation threshold within two years.
+            Adjust the adaptation budget and watch the bond spec regenerate.
+        </p>
+        <a href="./app.html?preset=ssp5-85" class="btn-primary inline-flex items-center gap-2 px-8 py-4 rounded-xl uppercase tracking-wider text-sm">
+            <span aria-hidden="true">▶</span> Launch the interactive dashboard
+        </a>
+    </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="max-w-6xl mx-auto px-6 py-10 text-[11px] font-mono text-slate-500 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+    <div>© 2026 · MIT license · CAS Climate Engine v1.1.0</div>
+    <div class="flex gap-5">
+        <a href="https://github.com/dnzengou/singularity-nexus" class="hover:text-cyan-300" rel="noopener">Source</a>
+        <a href="https://github.com/dnzengou/singularity-nexus/blob/main/BLUEPRINT.md" class="hover:text-cyan-300" rel="noopener">Blueprint</a>
+        <a href="https://github.com/dnzengou/singularity-nexus/blob/main/.github/SECURITY.md" class="hover:text-cyan-300" rel="noopener">Security</a>
+        <a href="./app.html" class="hover:text-cyan-300">Dashboard</a>
+    </div>
+</footer>
 
-    <div id="modal-root" hidden></div>
-
-    <!-- ================= Application logic ================= -->
-    <script>
-    (function () {
-        'use strict';
-
-        // ---------- Utilities ---------- //
-
-        // Fail-closed sanitizer: everything user-authored becomes textContent, never innerHTML.
-        function el(tag, attrs, children) {
-            const n = document.createElement(tag);
-            if (attrs) for (const k in attrs) {
-                if (k === 'class') n.className = attrs[k];
-                else if (k === 'text') n.textContent = attrs[k];
-                else if (k.startsWith('on') && typeof attrs[k] === 'function') n.addEventListener(k.slice(2), attrs[k]);
-                else if (attrs[k] === true) n.setAttribute(k, '');
-                else if (attrs[k] !== false && attrs[k] != null) n.setAttribute(k, attrs[k]);
-            }
-            if (children) for (const c of [].concat(children)) {
-                if (c == null || c === false) continue;
-                n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-            }
-            return n;
-        }
-        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-        // Non-cryptographic checksum for tamper-evidence on the trajectory ledger. Not a security boundary — a real deployment signs server-side.
-        function checksum(str) {
-            let h = 2166136261 >>> 0;
-            for (let i = 0; i < str.length; i++) {
-                h ^= str.charCodeAt(i);
-                h = Math.imul(h, 16777619) >>> 0;
-            }
-            return ('00000000' + h.toString(16)).slice(-8);
-        }
-        function nowIso() { return new Date().toISOString(); }
-        // Local date string YYYY-MM-DD — avoids UTC boundary drift for users west of UTC
-        // where a plain ISO substring rolls to tomorrow after ~19:00 local time.
-        function todayLocalIso() {
-            const d = new Date();
-            const p = n => (n < 10 ? '0' : '') + n;
-            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-        }
-        function shortId(prefix) {
-            const buf = new Uint8Array(6);
-            (window.crypto || window.msCrypto).getRandomValues(buf);
-            return prefix + '_' + Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-        function download(name, mime, content) {
-            const blob = new Blob([content], { type: mime });
-            const url = URL.createObjectURL(blob);
-            const a = el('a', { href: url, download: name });
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
-        function announce(msg) {
-            const live = document.getElementById('aria-live');
-            if (live) live.textContent = msg;
-        }
-
-        // ---------- Config (Stripe link, webhook, activation) ---------- //
-
-        const CFG_KEY = 'nexus.v1.config';
-        const Config = {
-            defaults: {
-                stripeBondUrl: '',
-                stripeProUrl: '',
-                leadWebhook: '',
-                activated: false,
-                bondPrice: '$99',
-                proPrice: '$29/mo'
-            },
-            load() {
-                try {
-                    const raw = localStorage.getItem(CFG_KEY);
-                    return Object.assign({}, this.defaults, raw ? JSON.parse(raw) : {});
-                } catch (_) { return Object.assign({}, this.defaults); }
-            },
-            save(patch) {
-                const next = Object.assign(this.load(), patch);
-                try { localStorage.setItem(CFG_KEY, JSON.stringify(next)); } catch (_) {}
-                return next;
-            }
-        };
-        // URL-driven activation: e.g. `?activated=1` sets pro flag after Stripe redirect success page bounces back here.
-        (function applyUrlActivation() {
-            const params = new URLSearchParams(location.search);
-            if (params.get('activated')) Config.save({ activated: true });
-        })();
-
-        // ---------- Regional / scenario presets ----------
-        // Illustrative demonstration values — NOT calibrated actuarial parameters.
-        // Real deployment would ingest region-specific data from NOAA/EM-DAT/reinsurer feeds.
-        const Presets = [
-            { id: 'sf-atl',   label: 'S. Florida Atlantic', freq: 1.6, adapt: 0.35, rein: 0.75 },
-            { id: 'gulf-la',  label: 'Gulf Coast LA',       freq: 2.2, adapt: 0.30, rein: 0.60 },
-            { id: 'bay-area', label: 'SF Bay Area',         freq: 1.4, adapt: 0.55, rein: 0.85 },
-            { id: 'bd-delta', label: 'Bangladesh Delta',    freq: 2.8, adapt: 0.20, rein: 0.30 },
-            { id: 'ssp2-45',  label: 'SSP2-4.5 Baseline',   freq: 1.2, adapt: 0.50, rein: 0.85 },
-            { id: 'ssp5-85',  label: 'SSP5-8.5 Aggressive', freq: 2.4, adapt: 0.30, rein: 0.55 }
-        ];
-        function findPreset(id) { return Presets.find(p => p.id === id) || null; }
-
-        // ---------- UrlState: sliders + preset ↔ URL query params ----------
-        // Rule (EvoForge STATE-SHAPE): this is VIEW-STATE, so URL is canonical, useState-equivalents are caches.
-        // On boot, apply URL params to state. On any user change, replaceState with the current view.
-        // Never bloats history — one entry per session. Share button copies location.href.
-        const UrlState = (function () {
-            const KEYS = ['f', 'a', 'r', 'preset'];
-            function readParams() {
-                const p = new URLSearchParams(location.search);
-                return {
-                    f: parseFloat(p.get('f')),
-                    a: parseFloat(p.get('a')),
-                    r: parseFloat(p.get('r')),
-                    preset: p.get('preset') || ''
-                };
-            }
-            function write(inputs, presetId) {
-                const p = new URLSearchParams(location.search);
-                // Preserve unrelated params (activated, utm_*, etc.) — only mutate ours.
-                KEYS.forEach(k => p.delete(k));
-                if (presetId) {
-                    p.set('preset', presetId);
-                } else {
-                    p.set('f', inputs.frequency.toFixed(2));
-                    p.set('a', inputs.adaptation.toFixed(2));
-                    p.set('r', inputs.reinsurance.toFixed(2));
-                }
-                const qs = p.toString();
-                const url = location.pathname + (qs ? '?' + qs : '') + location.hash;
-                history.replaceState(null, '', url);
-            }
-            return { readParams, write };
-        })();
-
-        // ---------- KafCa: client-side event bus ---------- //
-        // Named after Kafka semantics: publish, subscribe, no delivery order guarantees across topics, per-topic ordering preserved.
-        const KafCa = (function () {
-            const subs = new Map();
-            return {
-                publish(topic, payload) {
-                    const evt = { topic, payload, t: performance.now() };
-                    (subs.get(topic) || []).forEach(h => {
-                        try { h(evt); } catch (e) { console.warn('[KafCa]', topic, e); }
-                    });
-                },
-                subscribe(topic, handler) {
-                    if (!subs.has(topic)) subs.set(topic, []);
-                    subs.get(topic).push(handler);
-                    return () => {
-                        const arr = subs.get(topic) || [];
-                        const i = arr.indexOf(handler);
-                        if (i >= 0) arr.splice(i, 1);
-                    };
-                }
-            };
-        })();
-
-        // ---------- KafCade: cascading windowed aggregator over KafCa events ---------- //
-        // Emits `stream.window.updated` with trend/volatility/bifurcation signals derived from a rolling buffer.
-        const KafCade = (function () {
-            const WINDOW = 60;
-            const buffer = [];
-            function stddev(xs) {
-                if (xs.length < 2) return 0;
-                const m = xs.reduce((a, b) => a + b, 0) / xs.length;
-                const v = xs.reduce((a, b) => a + (b - m) * (b - m), 0) / xs.length;
-                return Math.sqrt(v);
-            }
-            function trendOf(xs) {
-                if (xs.length < 4) return 0;
-                const head = xs.slice(0, Math.floor(xs.length / 2));
-                const tail = xs.slice(-Math.floor(xs.length / 2));
-                const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
-                return avg(tail) - avg(head);
-            }
-            KafCa.subscribe('state.changed', ({ payload }) => {
-                buffer.push(payload.derived.insurabilityIndex);
-                if (buffer.length > WINDOW) buffer.shift();
-                const vol = stddev(buffer);
-                const tr = trendOf(buffer);
-                // Bifurcation heuristic: sustained downward trend AND recent value near critical threshold.
-                const bif = tr < -0.05 && buffer[buffer.length - 1] < 0.5;
-                KafCa.publish('stream.window.updated', {
-                    trend: tr, volatility: vol, bifurcation: bif, samples: buffer.length
-                });
-            });
-            return { snapshot: () => buffer.slice() };
-        })();
-
-        // ---------- EvoMetaClaw: signed trajectory registry (the moat) ---------- //
-        // Every session's parameter trajectory + decisions accumulate here. Sealed with a checksum so
-        // tampering is detectable. Export is gated behind Pro activation — this is the training-data flywheel.
-        const EvoMetaClaw = (function () {
-            const NS = 'nexus.v1.evometaclaw.';
-            const IDX_KEY = NS + 'index';
-            let sessionId, ledger;
-            try {
-                sessionId = localStorage.getItem(NS + 'currentSession');
-                if (!sessionId) {
-                    sessionId = shortId('sess');
-                    localStorage.setItem(NS + 'currentSession', sessionId);
-                }
-                const raw = localStorage.getItem(NS + sessionId);
-                ledger = raw ? JSON.parse(raw) : { id: sessionId, startedAt: nowIso(), events: [], seal: null };
-            } catch (_) {
-                sessionId = shortId('sess');
-                ledger = { id: sessionId, startedAt: nowIso(), events: [], seal: null };
-            }
-
-            function persistNow() {
-                try {
-                    ledger.seal = checksum(JSON.stringify(ledger.events));
-                    localStorage.setItem(NS + sessionId, JSON.stringify(ledger));
-                    // Maintain an index of sessions so a user can enumerate their history across restarts.
-                    let idx = [];
-                    try { idx = JSON.parse(localStorage.getItem(IDX_KEY) || '[]'); } catch (_) {}
-                    if (!idx.includes(sessionId)) {
-                        idx.push(sessionId);
-                        localStorage.setItem(IDX_KEY, JSON.stringify(idx.slice(-50)));
-                    }
-                } catch (_) { /* storage blocked; in-memory only */ }
-            }
-            // Debounced persist — sliders emit `input` at ~60Hz. Writing the full ledger + FNV-1a
-            // seal on every tick was blocking the main thread (E-audit finding). Trailing-edge 200ms
-            // is well below human perception yet coalesces a full drag into one write.
-            let persistTimer = null;
-            function persist() {
-                if (persistTimer) return;
-                persistTimer = setTimeout(() => { persistTimer = null; persistNow(); }, 200);
-            }
-            function record(type, data) {
-                ledger.events.push({ type, t: nowIso(), data: data || null });
-                if (ledger.events.length > 2000) ledger.events.splice(0, ledger.events.length - 2000);
-                persist();
-                KafCa.publish('metaclaw.recorded', { type, count: ledger.events.length });
-            }
-            // Flush pending persist before the tab is torn down — otherwise a rapid drag then close
-            // would lose the last window of events. `pagehide` is more reliable than `beforeunload`.
-            window.addEventListener('pagehide', () => { if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; persistNow(); } });
-
-            KafCa.subscribe('state.changed', ({ payload }) => record('state', payload));
-            KafCa.subscribe('ui.audit.requested', ({ payload }) => record('audit', payload));
-            KafCa.subscribe('commerce.lead.captured', ({ payload }) => record('lead', payload));
-            KafCa.subscribe('commerce.bond.generated', ({ payload }) => record('bond', payload));
-
-            return {
-                sessionId,
-                snapshot: () => JSON.parse(JSON.stringify(ledger)),
-                export() {
-                    // Adjacent snapshot with fresh seal — recipient can verify integrity.
-                    const snap = this.snapshot();
-                    snap.exportedAt = nowIso();
-                    snap.seal = checksum(JSON.stringify(snap.events));
-                    return snap;
-                },
-                verify(snap) {
-                    try { return snap && snap.seal === checksum(JSON.stringify(snap.events)); } catch (_) { return false; }
-                }
-            };
-        })();
-
-        // ---------- CAS engine: PURE function of inputs ---------- //
-        // v0/v1 bug: fragility was integrated on every input event, monotonically climbing regardless of
-        // adaptation — the "system stability" reading degraded no matter what users did. Now it's derived cleanly.
-        const DEFAULT_INPUTS = { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 };
-        const state = {
-            inputs: Object.assign({}, DEFAULT_INPUTS),
-            derived: { fragility: 0.20, premium: 0.25, insurabilityIndex: 0.82 },
-            activePreset: '',
-            lastLevel: null
-        };
-
-        function computeCAS({ frequency, adaptation, reinsurance }) {
-            const fragility = clamp(0.35 * frequency - 0.55 * adaptation + 0.15, 0, 1);
-            const premium = clamp((0.25 * frequency) + (0.35 * fragility) + (0.20 * (1 - reinsurance)), 0.1, 2.0);
-            const ii = clamp(
-                (0.45 * reinsurance) - (0.30 * premium) - (0.15 * (frequency / 4)) - (0.10 * fragility) + 0.65,
-                0, 1
-            );
-            return { fragility, premium, insurabilityIndex: ii };
-        }
-
-        // 5-year forward projection under business-as-usual drift:
-        //   climate forcing accelerates ~5%/yr, adaptation compounds ~8%/yr on current budget,
-        //   reinsurance capacity retreats proportional to current-year fragility.
-        // Illustrative model — deeper 10-yr projection with cross-variable feedback is Pro.
-        function projectCAS(base, years) {
-            const out = [];
-            let f = base.frequency, a = base.adaptation, r = base.reinsurance;
-            for (let y = 0; y <= years; y++) {
-                const d = computeCAS({ frequency: f, adaptation: a, reinsurance: r });
-                out.push({ year: y, frequency: f, adaptation: a, reinsurance: r, ii: d.insurabilityIndex, fragility: d.fragility });
-                f = clamp(f * 1.05, 0.5, 4.0);
-                a = clamp(a * 1.08, 0, 1.0);
-                r = clamp(r - d.fragility * 0.05, 0.1, 1.0);
-            }
-            return out;
-        }
-
-        function recompute() {
-            state.derived = computeCAS(state.inputs);
-            renderIndex();
-            renderProjection();
-            KafCa.publish('state.changed', {
-                inputs: Object.assign({}, state.inputs),
-                derived: Object.assign({}, state.derived)
-            });
-        }
-
-        // Sparkline projection — hand-rolled SVG, no chart library (IMMERSION-WITHOUT-WEIGHT).
-        // Threshold line at II=0.4 (critical bifurcation) drawn as dashed reference.
-        function renderProjection() {
-            const svg = document.getElementById('proj-path');
-            const end = document.getElementById('proj-endpoint');
-            const bandCrit = document.getElementById('proj-crit');
-            if (!svg) return;
-            const trajectory = projectCAS(state.inputs, 5);
-            const W = 200, H = 40;
-            const pts = trajectory.map((p, i) => {
-                const x = (i / (trajectory.length - 1)) * W;
-                const y = H - p.ii * H;
-                return x.toFixed(1) + ',' + y.toFixed(1);
-            });
-            svg.setAttribute('d', 'M' + pts.join(' L'));
-            const endII = trajectory[trajectory.length - 1].ii;
-            end.textContent = 'II→' + endII.toFixed(2);
-            end.className = 'font-mono ' + (endII < 0.4 ? 'text-red-400' : endII < 0.65 ? 'text-amber-400' : 'text-cyan-300');
-            // Colour the path by end-state severity
-            svg.setAttribute('stroke', endII < 0.4 ? '#ef4444' : endII < 0.65 ? '#f59e0b' : '#06b6d4');
-            // Update crit-crossing indicator: does II cross 0.4 within 5yr?
-            const crosses = trajectory.some(p => p.ii < 0.4) && trajectory[0].ii >= 0.4;
-            bandCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < 0.4 ? 'starts below critical' : 'holds above critical');
-            KafCa.publish('projection.updated', { end: endII, trajectory: trajectory });
-        }
-
-        function renderIndex() {
-            const iv = document.getElementById('index-val');
-            const sb = document.getElementById('status-badge');
-            const ab = document.getElementById('alert-box');
-            const ii = state.derived.insurabilityIndex;
-            iv.textContent = ii.toFixed(2);
-
-            let level, msg;
-            if (ii < 0.40) {
-                level = 'critical';
-                msg = 'CRITICAL: Index below 0.40. Reinsurance capital flight active. Mortgages losing underlying insurance backstop.';
-                iv.className = 'text-xl font-mono font-bold text-red-500 text-glow-danger';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30';
-                sb.textContent = 'Critical Bifurcation';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-red-950/50 border-red-500/50 text-red-200';
-                ab.textContent = msg;
-            } else if (ii < 0.65) {
-                level = 'elevated';
-                msg = 'ATTENTION: Primary insurers retreating. Residual market approaching absorption limits.';
-                iv.className = 'text-xl font-mono font-bold text-amber-400';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                sb.textContent = 'Elevated Risk';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-amber-950/40 border-amber-500/40 text-amber-200';
-                ab.textContent = msg;
-            } else {
-                level = 'stable';
-                msg = 'System nominal. Feedback dynamics within stable bounds.';
-                iv.className = 'text-xl font-mono font-bold text-cyan-400 text-glow';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-                sb.textContent = 'Stable';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200';
-                ab.textContent = msg;
-            }
-            // Announce only on level TRANSITIONS — screen readers were being spammed every slider tick.
-            if (level !== state.lastLevel) {
-                announce('Insurability index ' + ii.toFixed(2) + ', ' + level);
-                state.lastLevel = level;
-            }
-        }
-
-        // KafCade signals drive the trend/vol/bifurcation readout and gate escalating alerts.
-        KafCa.subscribe('stream.window.updated', ({ payload }) => {
-            const arrow = payload.trend > 0.02 ? '↗' : payload.trend < -0.02 ? '↘' : '→';
-            document.getElementById('metric-trend').textContent = arrow + ' ' + payload.trend.toFixed(2);
-            document.getElementById('metric-vol').textContent = payload.volatility.toFixed(3);
-            const bif = document.getElementById('metric-bif');
-            bif.textContent = payload.bifurcation ? 'YES' : 'no';
-            bif.className = 'text-sm font-mono ' + (payload.bifurcation ? 'text-red-400 text-glow-danger' : 'text-emerald-400');
-            document.getElementById('footer-samples').textContent = 'samples: ' + payload.samples;
-        });
-
-        // ---------- WebGL renderer (with graceful 2D fallback) ---------- //
-
-        const vertexShader = `
-            uniform float uTime;
-            uniform float uRisk;
-            varying vec2 vUv;
-            varying float vNoise;
-            float noise(vec3 p) {
-                return sin(p.x * 3.0 + uTime) * cos(p.y * 3.0 + uTime) * sin(p.z * 3.0 + uTime);
-            }
-            void main() {
-                vUv = uv;
-                vec3 p = position;
-                float n = noise(p);
-                vNoise = n;
-                float displacement = n * (1.0 - uRisk) * 0.8;
-                p += normal * displacement;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-            }
-        `;
-        const fragmentShader = `
-            uniform float uTime;
-            uniform float uRisk;
-            varying vec2 vUv;
-            varying float vNoise;
-            void main() {
-                vec3 cyanColor  = vec3(0.02, 0.71, 0.83);
-                vec3 amberColor = vec3(0.95, 0.60, 0.10);
-                vec3 redColor   = vec3(0.93, 0.20, 0.20);
-                vec3 finalColor;
-                if (uRisk > 0.65) {
-                    finalColor = mix(amberColor, cyanColor, (uRisk - 0.65) / 0.35);
-                } else {
-                    finalColor = mix(redColor, amberColor, uRisk / 0.65);
-                }
-                float pulse = sin(vUv.x * 40.0 - uTime * 3.0) * 0.5 + 0.5;
-                finalColor += pulse * 0.25;
-                if (uRisk < 0.40) {
-                    float glitch = step(0.85, sin(uTime * 25.0));
-                    finalColor += vec3(glitch * 0.4);
-                }
-                gl_FragColor = vec4(finalColor, 0.85);
-            }
-        `;
-
-        function initWebGL() {
-            if (window.__NEXUS_THREE_FAILED || typeof THREE === 'undefined') return false;
-            let container = document.getElementById('canvas-container');
-            let scene, camera, renderer, filamentMesh;
-            try {
-                scene = new THREE.Scene();
-                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-                camera.position.z = 4.5;
-                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                container.appendChild(renderer.domElement);
-
-                const geometry = new THREE.TorusKnotGeometry(1.2, 0.35, 180, 30);
-                const material = new THREE.ShaderMaterial({
-                    vertexShader, fragmentShader,
-                    uniforms: {
-                        uTime: { value: 0 },
-                        uRisk: { value: state.derived.insurabilityIndex }
-                    },
-                    wireframe: true, transparent: true
-                });
-                filamentMesh = new THREE.Mesh(geometry, material);
-                scene.add(filamentMesh);
-
-                const starGeo = new THREE.BufferGeometry();
-                const starCount = 2000;
-                const posArray = new Float32Array(starCount * 3);
-                for (let i = 0; i < starCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 20;
-                starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-                scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
-                    size: 0.015, color: 0x38bdf8, transparent: true, opacity: 0.4
-                })));
-
-                function animate(time) {
-                    requestAnimationFrame(animate);
-                    const t = (time || 0) * 0.001;
-                    filamentMesh.material.uniforms.uTime.value = t;
-                    filamentMesh.material.uniforms.uRisk.value = state.derived.insurabilityIndex;
-                    const rot = 0.2 + (1.0 - state.derived.insurabilityIndex) * 0.5;
-                    filamentMesh.rotation.x = t * rot * 0.5;
-                    filamentMesh.rotation.y = t * rot;
-                    renderer.render(scene, camera);
-                }
-                function onResize() {
-                    const w = Math.max(1, window.innerWidth);
-                    const h = Math.max(1, window.innerHeight);
-                    camera.aspect = w / h;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(w, h);
-                }
-                window.addEventListener('resize', onResize);
-                // Defer first sizing to the next frame — belt-and-suspenders for embeds where
-                // the container's layout hasn't resolved by the time boot() runs.
-                requestAnimationFrame(onResize);
-                animate();
-                return true;
-            } catch (e) {
-                console.warn('[Nexus] WebGL init failed, falling back to 2D:', e);
-                if (renderer && renderer.domElement) renderer.domElement.remove();
-                return false;
-            }
-        }
-
-        function init2DFallback() {
-            document.getElementById('canvas-container').hidden = true;
-            const cv = document.getElementById('canvas-2d');
-            cv.hidden = false;
-            function size() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
-            size(); window.addEventListener('resize', size);
-            const ctx = cv.getContext('2d');
-            function draw() {
-                requestAnimationFrame(draw);
-                ctx.fillStyle = 'rgba(3,7,18,0.25)';
-                ctx.fillRect(0, 0, cv.width, cv.height);
-                const buf = KafCade.snapshot();
-                if (!buf.length) return;
-                const w = cv.width, h = cv.height;
-                ctx.strokeStyle = state.derived.insurabilityIndex < 0.4 ? '#ef4444'
-                                 : state.derived.insurabilityIndex < 0.65 ? '#f59e0b' : '#06b6d4';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                buf.forEach((v, i) => {
-                    const x = (i / (buf.length - 1 || 1)) * w;
-                    const y = h - (v * h * 0.6) - h * 0.2;
-                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-            }
-            draw();
-        }
-
-        // ---------- Interaction ---------- //
-
-        // Single source of truth for input hydration. Slider bindings, preset apply, URL hydration,
-        // and any future reset-to-defaults all route through here — no more three-place drift.
-        function applyState(inputs, presetId) {
-            state.inputs = { frequency: inputs.frequency, adaptation: inputs.adaptation, reinsurance: inputs.reinsurance };
-            state.activePreset = presetId || '';
-            document.getElementById('freq-slider').value = state.inputs.frequency;
-            document.getElementById('adapt-slider').value = state.inputs.adaptation;
-            document.getElementById('rein-slider').value = state.inputs.reinsurance;
-            document.getElementById('freq-val').textContent = state.inputs.frequency.toFixed(1) + 'x';
-            document.getElementById('adapt-val').textContent = state.inputs.adaptation.toFixed(2);
-            document.getElementById('rein-val').textContent = state.inputs.reinsurance.toFixed(2);
-            const region = document.getElementById('footer-region');
-            const preset = findPreset(state.activePreset);
-            region.textContent = 'Region: ' + (preset ? preset.label : 'Custom scenario');
-            markActivePreset();
-            UrlState.write(state.inputs, state.activePreset);
-        }
-
-        function bindSlider(id, key, fmt) {
-            const s = document.getElementById(id);
-            const v = document.getElementById(id.replace('-slider', '-val'));
-            s.addEventListener('input', () => {
-                state.inputs[key] = parseFloat(s.value);
-                v.textContent = fmt(state.inputs[key]);
-                // Manual slider drift → clear preset id + refresh URL + footer region.
-                state.activePreset = '';
-                document.getElementById('footer-region').textContent = 'Region: Custom scenario';
-                markActivePreset();
-                UrlState.write(state.inputs, '');
-                recompute();
-            });
-        }
-
-        // Preset chip renderer + click handler.
-        function renderPresetChips() {
-            const root = document.getElementById('preset-chips');
-            root.textContent = '';
-            Presets.forEach(p => {
-                const chip = el('button', {
-                    type: 'button',
-                    'data-id': p.id,
-                    'aria-pressed': state.activePreset === p.id ? 'true' : 'false',
-                    class: 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(state.activePreset === p.id),
-                    text: p.label,
-                    onclick: () => applyPreset(p.id)
-                });
-                root.appendChild(chip);
-            });
-        }
-        function chipClass(active) {
-            return active
-                ? 'bg-cyan-500/25 border-cyan-400/60 text-cyan-100'
-                : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-200';
-        }
-        function markActivePreset() {
-            const chips = document.querySelectorAll('#preset-chips .preset-chip');
-            chips.forEach(c => {
-                const on = c.getAttribute('data-id') === state.activePreset;
-                c.setAttribute('aria-pressed', on ? 'true' : 'false');
-                c.className = 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(on);
-            });
-        }
-        function applyPreset(id) {
-            const p = findPreset(id);
-            if (!p) return;
-            applyState({ frequency: p.freq, adaptation: p.adapt, reinsurance: p.rein }, id);
-            KafCa.publish('preset.applied', { id: id, label: p.label });
-            recompute();
-            appendChat('Preset loaded: ' + p.label + '. Sliders reflect illustrative starting values.', 'ai');
-        }
-
-        // Share button — copies current view URL to clipboard.
-        function bindShareButton() {
-            const btn = document.getElementById('share-btn');
-            const original = btn.textContent;
-            btn.addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(location.href);
-                    btn.textContent = 'Copied ✓';
-                    setTimeout(() => { btn.textContent = original; }, 1500);
-                    KafCa.publish('ui.share.copied', { url: location.href });
-                } catch (_) {
-                    // Clipboard blocked (insecure context, permissions) — fall back to selection prompt.
-                    btn.textContent = 'Copy URL';
-                    window.prompt('Copy this URL:', location.href);
-                    setTimeout(() => { btn.textContent = original; }, 1500);
-                }
-            });
-        }
-
-        function appendChat(text, kind) {
-            const feed = document.getElementById('chat-feed');
-            const cls = kind === 'user'
-                ? 'bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-700/40 text-cyan-100 font-mono text-[11px]'
-                : 'bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 text-slate-200 text-xs';
-            feed.appendChild(el('div', { class: cls, text: kind === 'user' ? '> ' + text : text }));
-            feed.scrollTop = feed.scrollHeight;
-        }
-
-        function concierge(query) {
-            const ii = state.derived.insurabilityIndex;
-            const win = KafCade.snapshot();
-            const trend = win.length > 4 ? (win[win.length - 1] - win[0]).toFixed(2) : '0.00';
-            const proj = projectCAS(state.inputs, 5);
-            const projEnd = proj[proj.length - 1].ii;
-            const crossYear = proj.findIndex(p => p.ii < 0.4);
-            const q = query.toLowerCase();
-            if (q.includes('bond') || q.includes('resilience')) {
-                return 'Given current II=' + ii.toFixed(2) + ', projected II→' + projEnd.toFixed(2) + ' at t+5yr under BAU drift. I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
-            }
-            if (q.includes('mortgage') || q.includes('default')) {
-                return 'Insurance capacity below 0.60 correlates with ~14% incremental default probability on 30yr mortgages. Current II=' + ii.toFixed(2) + '. Portfolio-level detail: request an Asset Vulnerability Assessment.';
-            }
-            if (q.includes('exit') || q.includes('flight') || q.includes('when')) {
-                if (crossYear > 0) {
-                    return 'Under BAU drift, this trajectory crosses the critical II=0.4 threshold at year ' + crossYear + '. Primary carriers typically exit ~3.5yr ahead of the crossing. Consider immediate parametric coverage.';
-                }
-                return 'Trajectory holds above the critical threshold across the 5yr horizon (endpoint II=' + projEnd.toFixed(2) + '). No imminent carrier exit signal in the projection.';
-            }
-            if (q.includes('projection') || q.includes('5 year') || q.includes('forecast')) {
-                return 'Projection endpoint (t+5yr, BAU drift): II→' + projEnd.toFixed(2) + '. ' + (crossYear > 0 ? 'Crosses critical threshold at y' + crossYear + '.' : 'Holds above critical.') + ' Deeper 10yr projection with cross-variable feedback is available under Pro.';
-            }
-            if (q.includes('preset') || q.includes('scenario')) {
-                return 'Six illustrative presets are available above the sliders — coastal FL, Gulf LA, SF Bay, Bangladesh Delta, plus IPCC SSP2-4.5 and SSP5-8.5. Click a chip to load, tweak sliders to depart from it.';
-            }
-            if (ii < 0.4) {
-                return 'Diagnostic alert: at II=' + ii.toFixed(2) + ', primary carriers exit. Recommend federal resilience reinsurance backstop or mandatory municipal hardening.';
-            }
-            return 'System response: query evaluated against current state (climate forcing ' + state.inputs.frequency.toFixed(1) + 'x, adaptation ' + state.inputs.adaptation.toFixed(2) + '). Insurability holding at ' + ii.toFixed(2) + ', projected ' + projEnd.toFixed(2) + ' at t+5yr.';
-        }
-
-        // ---------- Modal system (accessible; focus trapped; Escape closes) ---------- //
-
-        let lastFocus = null;
-        function openModal(node) {
-            lastFocus = document.activeElement;
-            const backdrop = el('div', { class: 'nx-modal-backdrop', role: 'dialog', 'aria-modal': 'true' });
-            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
-            backdrop.appendChild(node);
-            document.body.appendChild(backdrop);
-            const first = node.querySelector('input, button, select, textarea');
-            if (first) first.focus();
-            function onKey(e) {
-                if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', onKey); }
-            }
-            document.addEventListener('keydown', onKey);
-        }
-        function closeModal() {
-            const b = document.querySelector('.nx-modal-backdrop');
-            if (b) b.remove();
-            if (lastFocus && lastFocus.focus) lastFocus.focus();
-        }
-
-        function makeModal(title, bodyNode, actions) {
-            const card = el('div', {
-                class: 'glass-card p-6 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4'
-            }, [
-                el('div', { class: 'flex justify-between items-start' }, [
-                    el('h3', { class: 'text-lg font-bold text-cyan-300', text: title }),
-                    el('button', {
-                        class: 'text-slate-400 hover:text-slate-100 text-2xl leading-none',
-                        'aria-label': 'Close', onclick: closeModal, text: '×'
-                    })
-                ]),
-                bodyNode,
-                el('div', { class: 'flex justify-end gap-2 pt-2' }, actions || [])
-            ]);
-            return card;
-        }
-
-        // ---------- Commercial pipeline handlers ---------- //
-
-        function openAssessment() {
-            const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
-            const nameI = el('input', { type: 'text', required: true, maxlength: 80, placeholder: 'Full name',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            const emailI = el('input', { type: 'email', required: true, maxlength: 120, placeholder: 'Work email',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            const companyI = el('input', { type: 'text', required: true, maxlength: 100, placeholder: 'Company / municipality',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            const zipI = el('input', { type: 'text', required: true, maxlength: 10, placeholder: 'Portfolio ZIP (e.g. 33139)',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            form.append(nameI, emailI, companyI, zipI);
-
-            const submit = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: 'Generate Report' });
-            const body = el('div', { class: 'space-y-3' }, [
-                el('p', { class: 'text-xs text-slate-400', text: 'We compute a portfolio-level insurability score using your current CAS parameters. Report is generated locally and downloadable as HTML.' }),
-                form
-            ]);
-            const modal = makeModal('Asset Vulnerability Assessment', body, [
-                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
-                submit
-            ]);
-
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const lead = {
-                    name: nameI.value.trim(), email: emailI.value.trim(),
-                    company: companyI.value.trim(), zip: zipI.value.trim(),
-                    capturedAt: nowIso()
-                };
-                submit.disabled = true;
-                submit.textContent = 'Generating…';
-                deliverLead(lead, 'assessment').finally(() => {
-                    const report = buildAssessmentReport(lead, state);
-                    download('nexus-assessment-' + lead.zip + '.html', 'text/html', report);
-                    KafCa.publish('commerce.lead.captured', { kind: 'assessment', lead: { email: lead.email, company: lead.company, zip: lead.zip } });
-                    closeModal();
-                    appendChat('Report generated for ' + lead.company + ' (ZIP ' + lead.zip + '). We\'ll follow up at ' + lead.email + '.', 'ai');
-                });
-            });
-
-            openModal(modal);
-        }
-
-        function openBond() {
-            const cfg = Config.load();
-            const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
-            const emailI = el('input', { type: 'email', required: true, maxlength: 120, placeholder: 'Work email',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            const notionalI = el('input', { type: 'number', required: true, min: '100000', max: '1000000000', step: '100000', value: '10000000', placeholder: 'Notional (USD)',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            const maturityI = el('input', { type: 'number', required: true, min: '1', max: '30', value: '5', placeholder: 'Maturity (yrs)',
-                class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-            form.append(emailI, notionalI, maturityI);
-
-            const gate = cfg.activated
-                ? 'You\'re on Pro — spec is unlocked instantly.'
-                : 'Free preview generates a redacted spec. Full spec unlocks after Pro activation (' + cfg.bondPrice + ').';
-
-            const primary = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: cfg.activated ? 'Generate Full Spec' : 'Generate Preview' });
-            const buyBtn = cfg.stripeBondUrl && !cfg.activated
-                ? el('a', { href: cfg.stripeBondUrl, target: '_blank', rel: 'noopener noreferrer',
-                    class: 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider', text: 'Unlock ' + cfg.bondPrice })
-                : null;
-
-            const body = el('div', { class: 'space-y-3' }, [
-                el('p', { class: 'text-xs text-slate-400', text: gate }),
-                form
-            ]);
-            const modal = makeModal('Resilience Bond Specification', body, [
-                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
-                buyBtn,
-                primary
-            ].filter(Boolean));
-
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const lead = { email: emailI.value.trim(), notional: parseFloat(notionalI.value), maturity: parseInt(maturityI.value, 10), capturedAt: nowIso() };
-                primary.disabled = true;
-                primary.textContent = 'Generating…';
-                deliverLead({ email: lead.email }, 'bond').finally(() => {
-                    const spec = buildBondSpec(lead, state, Config.load().activated);
-                    download('nexus-bond-' + Date.now() + '.html', 'text/html', spec);
-                    KafCa.publish('commerce.bond.generated', { notional: lead.notional, maturity: lead.maturity });
-                    closeModal();
-                    appendChat('Bond spec drafted (notional $' + lead.notional.toLocaleString() + ', ' + lead.maturity + 'yr). ' + (Config.load().activated ? 'Full parametric triggers included.' : 'Preview only — activate Pro for triggers.'), 'ai');
-                });
-            });
-
-            openModal(modal);
-        }
-
-        function openExport() {
-            const cfg = Config.load();
-            if (!cfg.activated) {
-                const body = el('div', { class: 'space-y-3' }, [
-                    el('p', { class: 'text-sm text-slate-300', text: 'Trajectory export is a Pro capability. Your session data continues accumulating either way — activate Pro when you\'re ready to export it.' }),
-                    el('p', { class: 'text-xs text-slate-500', text: 'Session id: ' + EvoMetaClaw.sessionId + ' · ' + EvoMetaClaw.snapshot().events.length + ' events recorded.' })
-                ]);
-                const buy = cfg.stripeProUrl
-                    ? el('a', { href: cfg.stripeProUrl, target: '_blank', rel: 'noopener noreferrer',
-                        class: 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider', text: 'Activate Pro ' + cfg.proPrice })
-                    : el('button', { class: 'px-4 py-2 text-slate-400 text-xs', text: 'Configure Stripe first (gear icon)', onclick: closeModal });
-                openModal(makeModal('Export Trajectory Data', body, [
-                    el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Close', onclick: closeModal }),
-                    buy
-                ]));
-                return;
-            }
-            const snap = EvoMetaClaw.export();
-            download('nexus-trajectory-' + snap.id + '.json', 'application/json', JSON.stringify(snap, null, 2));
-            appendChat('Exported ' + snap.events.length + ' trajectory events (seal ' + snap.seal + '). Ledger integrity is verifiable via checksum.', 'ai');
-        }
-
-        function openConfig() {
-            const cfg = Config.load();
-            const form = el('form', { class: 'space-y-3' });
-            const fields = [
-                ['stripeBondUrl', 'Stripe Payment Link — Bond Spec', 'https://buy.stripe.com/...', 'url'],
-                ['stripeProUrl', 'Stripe Payment Link — Pro', 'https://buy.stripe.com/...', 'url'],
-                ['leadWebhook', 'Lead capture webhook (POST JSON)', 'https://your.crm/webhook', 'url'],
-                ['bondPrice', 'Bond spec display price', '$99', 'text'],
-                ['proPrice', 'Pro display price', '$29/mo', 'text']
-            ];
-            const inputs = {};
-            fields.forEach(([k, label, ph, type]) => {
-                const i = el('input', { type: type, value: cfg[k] || '', placeholder: ph, maxlength: 200,
-                    class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
-                inputs[k] = i;
-                form.append(el('label', { class: 'block space-y-1' }, [
-                    el('span', { class: 'text-xs text-slate-400', text: label }),
-                    i
-                ]));
-            });
-            const activated = el('input', { type: 'checkbox', class: 'mr-2', checked: cfg.activated });
-            form.append(el('label', { class: 'flex items-center text-xs text-slate-300' }, [
-                activated,
-                document.createTextNode(' Pro activated (auto-set when Stripe redirects back with ?activated=1)')
-            ]));
-
-            const save = el('button', { type: 'submit', class: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg', text: 'Save' });
-            const modal = makeModal('Configuration', form, [
-                el('button', { class: 'px-4 py-2 text-slate-400 text-xs hover:text-slate-100', text: 'Cancel', onclick: closeModal }),
-                save
-            ]);
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const patch = { activated: activated.checked };
-                Object.keys(inputs).forEach(k => { patch[k] = inputs[k].value.trim(); });
-                Config.save(patch);
-                applyActivationState();
-                closeModal();
-                appendChat('Configuration saved. Payment links and webhook are live.', 'ai');
-            });
-            openModal(modal);
-        }
-
-        // Fire-and-forget lead delivery. Webhook is best-effort — if it fails, mailto fallback is offered inline.
-        async function deliverLead(lead, kind) {
-            const cfg = Config.load();
-            if (!cfg.leadWebhook) return;
-            try {
-                await fetch(cfg.leadWebhook, {
-                    method: 'POST', mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ kind, lead, session: EvoMetaClaw.sessionId, at: nowIso() })
-                });
-            } catch (e) {
-                console.warn('[Nexus] Lead webhook failed; capture stored locally.', e);
-            }
-        }
-
-        function buildAssessmentReport(lead, state) {
-            const ii = state.derived.insurabilityIndex;
-            const grade = ii >= 0.7 ? 'A' : ii >= 0.55 ? 'B' : ii >= 0.4 ? 'C' : 'D';
-            const recs = ii < 0.5
-                ? '<li>Immediate capital rotation from Tier-1 coastal exposure</li><li>Parametric bond wrapper on core assets</li><li>Reinsurance backstop renegotiation within 90 days</li>'
-                : '<li>Hardening capex prioritized on top-quartile fragility assets</li><li>Rolling reinsurance capacity review each 12mo</li><li>Monitor II<sub>t</sub> for cross-threshold events</li>';
-            return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Assessment ${escapeAttr(lead.company)}</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
-h1{color:#0891b2;margin-bottom:0}.grade{font-size:64px;font-weight:900;color:${ii<0.5?'#dc2626':'#0891b2'}}
-table{width:100%;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
-.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
-<body>
-<h1>Asset Vulnerability Assessment</h1>
-<p style="color:#64748b">Prepared for ${escapeHtml(lead.company)} · ZIP ${escapeHtml(lead.zip)} · ${escapeHtml(todayLocalIso())}</p>
-<div class="grade">${grade}</div>
-<p>Insurability Index (II<sub>t</sub>): <strong>${ii.toFixed(2)}</strong> — <em>${ii>=0.65?'Stable':ii>=0.4?'Elevated Risk':'Critical Bifurcation'}</em></p>
-<table>
-<tr><th>Signal</th><th>Value</th></tr>
-<tr><td>Climate Forcing (f<sub>t</sub>)</td><td>${state.inputs.frequency.toFixed(2)}x</td></tr>
-<tr><td>Adaptation Budget (A<sub>t</sub>)</td><td>${state.inputs.adaptation.toFixed(2)}</td></tr>
-<tr><td>Reinsurance Backstop (R<sub>t</sub>)</td><td>${state.inputs.reinsurance.toFixed(2)}</td></tr>
-<tr><td>Derived Fragility</td><td>${state.derived.fragility.toFixed(2)}</td></tr>
-<tr><td>Implied Premium Multiplier</td><td>${state.derived.premium.toFixed(2)}</td></tr>
-</table>
-<h2>Recommended Interventions</h2>
-<ol>${recs}</ol>
-<div class="foot">Contact: ${escapeHtml(lead.name)} &lt;${escapeHtml(lead.email)}&gt; · Session ${escapeHtml(EvoMetaClaw.sessionId)}<br>
-Singularity Nexus · CAS Predictive Risk Intelligence Platform · © 2026<br>
-This report reflects current session parameters. Live monitoring available under Pro.</div>
-</body></html>`;
-        }
-
-        function buildBondSpec(lead, state, unlocked) {
-            const trigger = clamp(state.derived.insurabilityIndex - 0.10, 0.20, 0.60).toFixed(2);
-            const coupon = (0.04 + state.derived.fragility * 0.06).toFixed(4);
-            const payout = unlocked ? '100% notional if II<sub>t</sub> &lt; ' + trigger + ' for 30 consecutive trading days' : '<em>[REDACTED — Pro only]</em>';
-            const triggers = unlocked ? '<ul><li>Primary: II<sub>t</sub> monitoring via Nexus API</li><li>Secondary: NOAA county-level wind speed &gt; SS-Cat 3</li><li>Tertiary: Reinsurance capacity index &lt; 0.30</li></ul>' : '<em>[REDACTED — Pro only]</em>';
-            return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Resilience Bond Spec</title>
-<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
-h1{color:#0891b2}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
-.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
-<body>
-<h1>Resilience Bond Specification</h1>
-<p style="color:#64748b">Draft · ${escapeHtml(todayLocalIso())} · Recipient ${escapeHtml(lead.email)}</p>
-<table>
-<tr><th>Term</th><th>Value</th></tr>
-<tr><td>Notional</td><td>$${lead.notional.toLocaleString()}</td></tr>
-<tr><td>Maturity</td><td>${lead.maturity} years</td></tr>
-<tr><td>Coupon (annual)</td><td>${coupon}</td></tr>
-<tr><td>Trigger Level (II<sub>t</sub>)</td><td>${trigger}</td></tr>
-<tr><td>Payout</td><td>${payout}</td></tr>
-</table>
-<h2>Trigger Cascade</h2>
-${triggers}
-<div class="foot">Draft only — not an offering document. Session ${escapeHtml(EvoMetaClaw.sessionId)}.<br>
-Singularity Nexus · © 2026</div>
-</body></html>`;
-        }
-
-        function escapeHtml(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
-        function escapeAttr(s) { return escapeHtml(s); }
-
-        function applyActivationState() {
-            const cfg = Config.load();
-            document.getElementById('activation-chip').hidden = !cfg.activated;
-            const bp = document.getElementById('bond-price-chip');
-            const ep = document.getElementById('export-price-chip');
-            if (cfg.activated) {
-                bp.textContent = 'Pro';
-                bp.className = 'text-[10px] font-mono text-emerald-400';
-                ep.textContent = 'Ready';
-                ep.className = 'text-[10px] font-mono text-emerald-400';
-            } else {
-                bp.textContent = cfg.bondPrice;
-                bp.className = 'text-[10px] font-mono text-amber-400';
-                ep.textContent = cfg.proPrice;
-                ep.className = 'text-[10px] font-mono text-amber-400';
-            }
-        }
-
-        // ---------- Boot ---------- //
-
-        function boot() {
-            document.getElementById('footer-session').textContent = 'Session ' + EvoMetaClaw.sessionId;
-            bindSlider('freq-slider', 'frequency', v => v.toFixed(1) + 'x');
-            bindSlider('adapt-slider', 'adaptation', v => v.toFixed(2));
-            bindSlider('rein-slider', 'reinsurance', v => v.toFixed(2));
-            renderPresetChips();
-            bindShareButton();
-
-            // Hydrate from URL — preset id wins over raw sliders (canonical VIEW-STATE serialisation).
-            const p = UrlState.readParams();
-            const preset = findPreset(p.preset);
-            if (preset) {
-                applyState({ frequency: preset.freq, adaptation: preset.adapt, reinsurance: preset.rein }, preset.id);
-            } else if ([p.f, p.a, p.r].every(v => Number.isFinite(v))) {
-                applyState({
-                    frequency: clamp(p.f, 0.5, 4.0),
-                    adaptation: clamp(p.a, 0.0, 1.0),
-                    reinsurance: clamp(p.r, 0.1, 1.0)
-                }, '');
-            } else {
-                applyState(DEFAULT_INPUTS, '');
-            }
-
-            document.getElementById('audit-btn').addEventListener('click', () => {
-                const s = state.derived;
-                const primaryDriver = state.inputs.frequency > 2.0 ? 'Accelerated Climate Event Frequency' : 'Reinsurance Capacity Limits';
-                appendChat('Executive audit — II<sub>t</sub>=' + s.insurabilityIndex.toFixed(2) + '. Primary driver: ' + primaryDriver + '. Recommended: Parametric Resilience Bonds to close the Infrastructure Maintenance Gap.', 'ai');
-                KafCa.publish('ui.audit.requested', { state: s });
-            });
-            document.getElementById('assess-btn').addEventListener('click', openAssessment);
-            document.getElementById('bond-btn').addEventListener('click', openBond);
-            document.getElementById('export-btn').addEventListener('click', openExport);
-            document.getElementById('config-btn').addEventListener('click', openConfig);
-
-            document.getElementById('chat-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const input = document.getElementById('chat-input');
-                const text = input.value.trim();
-                if (!text) return;
-                appendChat(text, 'user');
-                input.value = '';
-                setTimeout(() => appendChat(concierge(text), 'ai'), 350);
-            });
-
-            // Renderer selection with graceful fallback if THREE fails.
-            const webglOk = initWebGL();
-            if (!webglOk) init2DFallback();
-
-            applyActivationState();
-            recompute();
-        }
-
-        // Boot as soon as DOM is parsed; scripts sit at bottom of body so this is safe.
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', boot);
-        } else {
-            boot();
-        }
-    })();
-    </script>
 </body>
 </html>

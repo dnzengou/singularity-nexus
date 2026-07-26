@@ -5,7 +5,9 @@
 [![Deploy](https://github.com/dnzengou/singularity-nexus/actions/workflows/deploy.yml/badge.svg)](https://github.com/dnzengou/singularity-nexus/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Live: `https://dnzengou.github.io/singularity-nexus/` (after Pages activation)
+- Landing: `https://dnzengou.github.io/singularity-nexus/`
+- Dashboard: `https://dnzengou.github.io/singularity-nexus/app.html`
+- Sample scenario: `https://dnzengou.github.io/singularity-nexus/app.html?preset=ssp5-85`
 
 ---
 
@@ -23,9 +25,15 @@ A single self-contained HTML file (~60 KB) that models Complex Adaptive Systems 
 - **AI Risk Concierge** — keyword-routed responses grounded in current state
 - **Commercial pipeline** — free Asset Vulnerability Assessment + paid Resilience Bond Spec, wired to Stripe Payment Links
 
+## Structure
+
+- `index.html` — landing page (marketing surface, OG + JSON-LD, backward-compat redirect for `?preset=` links)
+- `app.html` — full interactive dashboard (the product UI)
+- `BLUEPRINT.md` — architecture, module manifest, roadmap, changelog
+
 ## Run it
 
-Open `index.html` in any modern browser. No build, no npm install, no server.
+Open `app.html` (the dashboard) or `index.html` (the landing) in any modern browser. No build, no npm install, no server.
 
 For local development, any static file server works:
 

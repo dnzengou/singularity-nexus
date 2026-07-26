@@ -1,9 +1,13 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Date:** 2026-07-24
-**Status:** Production-ready pilot · single-file HTML app
-**Live URL:** `https://dnzengou.github.io/singularity-nexus/` (post-Pages activation)
+**Status:** Production-ready pilot · marketing landing + interactive dashboard
+**Live URLs:**
+- Landing: `https://dnzengou.github.io/singularity-nexus/`
+- Dashboard: `https://dnzengou.github.io/singularity-nexus/app.html`
+- Shareable scenario: `https://dnzengou.github.io/singularity-nexus/app.html?preset=ssp5-85`
+
 **Repo:** https://github.com/dnzengou/singularity-nexus
 
 ---
@@ -100,6 +104,7 @@ Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded 
 | Debounce EvoMetaClaw persist (fix 60Hz storage write) | ✅ | v1.1 — E-audit P1 fold |
 | ARIA-live announce only on level transitions | ✅ | v1.1 — E-audit P1 fold |
 | `applyState()` single-source-of-truth helper | ✅ | v1.1 — E-audit P1 fold |
+| Marketing landing page (`/index.html`) with OG + JSON-LD + backward-compat redirect | ✅ | v1.2 — dashboard moved to `/app.html` |
 | Named constants for CAS coefficients | 🔲 | Auditability improvement |
 | Playwright smoke test suite | 🔲 | Pre-scale requirement |
 | Cryptographic seal (server-signed) for EvoMetaClaw | 🔲 | Requires backend — Phase 2 |
@@ -112,12 +117,14 @@ Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded 
 
 | Channel | Status | Path | Notes |
 |---|---|---|---|
-| GitHub Pages (canonical) | ✅ CI | `main` → `.github/workflows/deploy.yml` | Live URL from Pages |
-| Direct download | ✅ | Repo `Raw` link to `index.html` | Single-file, open in browser |
-| Embed in existing site | ✅ | `<iframe src="index.html">` | Sandboxed CSP allows same-origin embed |
-| Netlify mirror | 🔲 | Drop `index.html` in any Netlify site | No build step needed |
-| Vercel mirror | 🔲 | Same — static asset | |
-| Offline / air-gap | ✅ | Save-as HTML; CDN fallbacks let it degrade cleanly | |
+| GitHub Pages — landing (canonical) | ✅ CI | `/index.html` | Marketing surface, OG + JSON-LD, SEO entrypoint |
+| GitHub Pages — dashboard | ✅ CI | `/app.html` | Full interactive product UI, deep-linkable via `?preset=` |
+| Shareable scenario link | ✅ | `/app.html?preset=<id>` | Any of 6 presets; landing forwards legacy `/?preset=` shape |
+| Direct download | ✅ | Repo `Raw` link to `app.html` | Single-file, open in browser, works offline |
+| Embed in existing site | ✅ | `<iframe src="app.html">` | Sandboxed CSP allows same-origin embed |
+| Netlify mirror | 🔲 | Drop both `index.html` + `app.html` in any Netlify site | No build step needed |
+| Vercel mirror | 🔲 | Same — static assets | |
+| Offline / air-gap | ✅ | Save-as HTML; CDN fallbacks degrade cleanly | |
 | npm package (`nexus-widget`) | 🔲 | Wrap as `<nexus-widget>` custom element | Phase 2 |
 
 ---
@@ -162,6 +169,16 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.2.0 — 2026-07-24
+- **Landing page (kafcade v2.2 LANDING-PAGE + v3.1 DEMO-BEFORE-INSTALL):**
+  - Dashboard moved from `/index.html` to `/app.html` (git-mv preserves history).
+  - New `/index.html` is a dedicated marketing surface: hero + why + what + commercial pipeline + final CTA.
+  - Primary CTA `▶ Try the SSP5-8.5 scenario` links straight to `/app.html?preset=ssp5-85` — the dramatic bifurcation projection IS the demo (no separate demo infra).
+  - Live-style hero sparkline mirrors the app's actual `projectCAS` output so what the visitor sees on landing is what the product renders.
+- **Backward-compat redirect:** landing detects `?preset=/?f=/?a=/?r=` in the URL and forwards immediately to `/app.html?…` (preserves v1.1 shareable URLs already in circulation).
+- **Discoverability meta:** Open Graph + Twitter cards + canonical link + `application/ld+json` SoftwareApplication schema with 3 Offer entries (Free / $99 / $29).
+- **Deploy sanity gate widened** to `*.html` — checks both landing and dashboard for the UTC-drift antipattern.
 
 ### v1.1.0 — 2026-07-24
 - **UI/UX evolution (evo-metaclaw v1.6 DOMAIN-EXTENSION):**

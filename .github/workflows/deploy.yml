@@ -26,11 +26,12 @@ jobs:
 
       - name: Basic HTML sanity check
         run: |
-          # Fail if index.html is missing or empty.
-          test -s index.html || { echo "index.html missing or empty"; exit 1; }
-          # Fail on UTC-drift antipattern, but ignore lines that are JS comments
-          # (comments documenting the antipattern shouldn't fail the build).
-          if grep -nE 'toISOString\(\)\.slice\(0,\s*10\)' index.html | grep -vE '^\s*[0-9]+:\s*//'; then
+          # Both shipped pages must exist and be non-empty.
+          test -s index.html || { echo "index.html (landing) missing or empty"; exit 1; }
+          test -s app.html   || { echo "app.html (dashboard) missing or empty"; exit 1; }
+          # Fail on UTC-drift antipattern across every shipped HTML file, but ignore
+          # JS single-line comments (comments documenting the antipattern shouldn't fail).
+          if grep -rnE 'toISOString\(\)\.slice\(0,\s*10\)' *.html | grep -vE ':\s*[0-9]+:\s*//'; then
             echo "::error::UTC-drift antipattern present — use todayLocalIso()"
             exit 1
           fi
