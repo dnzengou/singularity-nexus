@@ -58,6 +58,44 @@
             #canvas-container { opacity: 0.35; }
             .animate-ping { animation: none !important; }
         }
+        /* Executive Report print view — dashboard becomes a static, printable snapshot.
+           Hides live-only chrome (WebGL, animations, interactive controls) and keeps
+           the numbers + narrative that a stakeholder would ask about in a briefing. */
+        @media print {
+            :root { color-scheme: light; }
+            body { background: #fff !important; color: #0f172a !important; }
+            .glass-card { background: #fff !important; border-color: #cbd5e1 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; }
+            #canvas-container, #canvas-2d, .animate-ping, #config-btn, #share-btn, #print-btn,
+            #chat-form, #audit-btn, input[type="range"] { display: none !important; }
+            /* Hide the whole Commerce Pipeline section (buttons + wrapper + heading) — an executive report
+               shouldn't advertise CTAs. Same for the illustrative-presets header block. */
+            section[aria-labelledby="commerce-heading"] { display: none !important; }
+            #preset-chips, #preset-chips + * { display: none !important; }
+            /* Chat history should be readable end-to-end in a printed report, not scroll-clipped. */
+            section[aria-labelledby="concierge-heading"] { height: auto !important; }
+            #chat-feed { max-height: none !important; overflow: visible !important; }
+            .text-glow, .text-glow-danger { text-shadow: none !important; }
+            .text-cyan-400, .text-cyan-300, .text-cyan-200, .text-cyan-100 { color: #0891b2 !important; }
+            .text-amber-400, .text-amber-300, .text-amber-200 { color: #b45309 !important; }
+            .text-red-500, .text-red-400, .text-red-300, .text-red-200 { color: #b91c1c !important; }
+            .text-emerald-400, .text-emerald-300 { color: #047857 !important; }
+            .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #0f172a !important; }
+            .text-slate-500 { color: #475569 !important; }
+            /* Add a print-only report banner + timestamp inserted by JS at print time. */
+            .print-only { display: block !important; }
+            @page { margin: 18mm; }
+            body::before {
+                content: 'Singularity Nexus — Executive Report · ' attr(data-print-stamp);
+                display: block; font-family: system-ui, sans-serif; font-weight: 700; font-size: 14px;
+                border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 16px;
+                color: #0f172a;
+            }
+            /* Force main grid into a single readable column for print.
+               `\:` is the CSS escape for `:` in a class name (Tailwind uses colons for breakpoints). */
+            .md\:grid-cols-12 { display: block !important; }
+            section { page-break-inside: avoid; margin-bottom: 12px; }
+        }
+        .print-only { display: none; }
         /* Focus visibility for keyboard nav — the default outline gets swallowed by tailwind reset. */
         button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
             outline: 2px solid var(--nx-cyan);
@@ -96,7 +134,7 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center justify-end gap-2 md:gap-3">
                 <div id="activation-chip" class="glass-card px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider text-slate-400" hidden>
                     <span class="text-emerald-400">&#9679;</span> Pro Activated
                 </div>
@@ -111,6 +149,9 @@
                 </div>
                 <button id="share-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Copy shareable link to this scenario">
                     Share
+                </button>
+                <button id="print-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Print executive report of current scenario">
+                    Report
                 </button>
                 <button id="config-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto" aria-label="Open configuration">
                     &#9881;
@@ -560,6 +601,37 @@
         // ---------- CAS engine: PURE function of inputs ---------- //
         // v0/v1 bug: fragility was integrated on every input event, monotonically climbing regardless of
         // adaptation — the "system stability" reading degraded no matter what users did. Now it's derived cleanly.
+        //
+        // Coefficients are named for auditability — external reviewers (actuaries, regulators, RE brokers)
+        // can inspect the model without pattern-matching floats. Values are illustrative pilot calibrations;
+        // real deployment would replace with region-fitted regression outputs.
+        const CAS = Object.freeze({
+            // Fragility: rises with climate forcing, falls with adaptation, with a static baseline component.
+            //   fragility = FRAGILITY_FROM_FORCING * f  -  FRAGILITY_FROM_ADAPT * a  +  FRAGILITY_BASELINE
+            FRAGILITY_FROM_FORCING: 0.35,
+            FRAGILITY_FROM_ADAPT:   0.55,
+            FRAGILITY_BASELINE:     0.15,
+            // Premium multiplier: rises with forcing, fragility, and (1 - reinsurance capacity).
+            //   premium = PREMIUM_FROM_FORCING * f  +  PREMIUM_FROM_FRAGILITY * fragility  +  PREMIUM_FROM_REIN_GAP * (1 - r)
+            PREMIUM_FROM_FORCING:      0.25,
+            PREMIUM_FROM_FRAGILITY:    0.35,
+            PREMIUM_FROM_REIN_GAP:     0.20,
+            PREMIUM_MIN: 0.1, PREMIUM_MAX: 2.0,
+            // Insurability Index: rises with reinsurance backstop, falls with premium, forcing, and fragility.
+            //   ii = II_FROM_REIN * r  -  II_FROM_PREMIUM * premium  -  II_FROM_FORCING * (f / 4)  -  II_FROM_FRAGILITY * fragility  +  II_INTERCEPT
+            II_FROM_REIN:      0.45,
+            II_FROM_PREMIUM:   0.30,
+            II_FROM_FORCING:   0.15,
+            II_FROM_FRAGILITY: 0.10,
+            II_INTERCEPT:      0.65,
+            // BAU drift coefficients used by projectCAS — see projection function for physical meaning.
+            DRIFT_FORCING_PER_YR:    0.05,
+            DRIFT_ADAPT_PER_YR:      0.08,
+            DRIFT_REIN_PER_FRAGILITY: 0.05,
+            // Critical bifurcation threshold — carriers exit below this.
+            CRITICAL_II: 0.40, ELEVATED_II: 0.65
+        });
+
         const DEFAULT_INPUTS = { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 };
         const state = {
             inputs: Object.assign({}, DEFAULT_INPUTS),
@@ -569,10 +641,24 @@
         };
 
         function computeCAS({ frequency, adaptation, reinsurance }) {
-            const fragility = clamp(0.35 * frequency - 0.55 * adaptation + 0.15, 0, 1);
-            const premium = clamp((0.25 * frequency) + (0.35 * fragility) + (0.20 * (1 - reinsurance)), 0.1, 2.0);
+            const fragility = clamp(
+                CAS.FRAGILITY_FROM_FORCING * frequency
+                - CAS.FRAGILITY_FROM_ADAPT * adaptation
+                + CAS.FRAGILITY_BASELINE,
+                0, 1
+            );
+            const premium = clamp(
+                CAS.PREMIUM_FROM_FORCING * frequency
+                + CAS.PREMIUM_FROM_FRAGILITY * fragility
+                + CAS.PREMIUM_FROM_REIN_GAP * (1 - reinsurance),
+                CAS.PREMIUM_MIN, CAS.PREMIUM_MAX
+            );
             const ii = clamp(
-                (0.45 * reinsurance) - (0.30 * premium) - (0.15 * (frequency / 4)) - (0.10 * fragility) + 0.65,
+                CAS.II_FROM_REIN * reinsurance
+                - CAS.II_FROM_PREMIUM * premium
+                - CAS.II_FROM_FORCING * (frequency / 4)
+                - CAS.II_FROM_FRAGILITY * fragility
+                + CAS.II_INTERCEPT,
                 0, 1
             );
             return { fragility, premium, insurabilityIndex: ii };
@@ -588,9 +674,9 @@
             for (let y = 0; y <= years; y++) {
                 const d = computeCAS({ frequency: f, adaptation: a, reinsurance: r });
                 out.push({ year: y, frequency: f, adaptation: a, reinsurance: r, ii: d.insurabilityIndex, fragility: d.fragility });
-                f = clamp(f * 1.05, 0.5, 4.0);
-                a = clamp(a * 1.08, 0, 1.0);
-                r = clamp(r - d.fragility * 0.05, 0.1, 1.0);
+                f = clamp(f * (1 + CAS.DRIFT_FORCING_PER_YR), 0.5, 4.0);
+                a = clamp(a * (1 + CAS.DRIFT_ADAPT_PER_YR), 0, 1.0);
+                r = clamp(r - d.fragility * CAS.DRIFT_REIN_PER_FRAGILITY, 0.1, 1.0);
             }
             return out;
         }
@@ -622,12 +708,12 @@
             svg.setAttribute('d', 'M' + pts.join(' L'));
             const endII = trajectory[trajectory.length - 1].ii;
             end.textContent = 'II→' + endII.toFixed(2);
-            end.className = 'font-mono ' + (endII < 0.4 ? 'text-red-400' : endII < 0.65 ? 'text-amber-400' : 'text-cyan-300');
+            end.className = 'font-mono ' + (endII < CAS.CRITICAL_II ? 'text-red-400' : endII < CAS.ELEVATED_II ? 'text-amber-400' : 'text-cyan-300');
             // Colour the path by end-state severity
-            svg.setAttribute('stroke', endII < 0.4 ? '#ef4444' : endII < 0.65 ? '#f59e0b' : '#06b6d4');
-            // Update crit-crossing indicator: does II cross 0.4 within 5yr?
-            const crosses = trajectory.some(p => p.ii < 0.4) && trajectory[0].ii >= 0.4;
-            bandCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < 0.4 ? 'starts below critical' : 'holds above critical');
+            svg.setAttribute('stroke', endII < CAS.CRITICAL_II ? '#ef4444' : endII < CAS.ELEVATED_II ? '#f59e0b' : '#06b6d4');
+            // Update crit-crossing indicator: does II cross the critical threshold within 5yr?
+            const crosses = trajectory.some(p => p.ii < CAS.CRITICAL_II) && trajectory[0].ii >= CAS.CRITICAL_II;
+            bandCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < CAS.CRITICAL_II ? 'starts below critical' : 'holds above critical');
             KafCa.publish('projection.updated', { end: endII, trajectory: trajectory });
         }
 
@@ -639,7 +725,7 @@
             iv.textContent = ii.toFixed(2);
 
             let level, msg;
-            if (ii < 0.40) {
+            if (ii < CAS.CRITICAL_II) {
                 level = 'critical';
                 msg = 'CRITICAL: Index below 0.40. Reinsurance capital flight active. Mortgages losing underlying insurance backstop.';
                 iv.className = 'text-xl font-mono font-bold text-red-500 text-glow-danger';
@@ -647,7 +733,7 @@
                 sb.textContent = 'Critical Bifurcation';
                 ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-red-950/50 border-red-500/50 text-red-200';
                 ab.textContent = msg;
-            } else if (ii < 0.65) {
+            } else if (ii < CAS.ELEVATED_II) {
                 level = 'elevated';
                 msg = 'ATTENTION: Primary insurers retreating. Residual market approaching absorption limits.';
                 iv.className = 'text-xl font-mono font-bold text-amber-400';
@@ -805,8 +891,8 @@
                 const buf = KafCade.snapshot();
                 if (!buf.length) return;
                 const w = cv.width, h = cv.height;
-                ctx.strokeStyle = state.derived.insurabilityIndex < 0.4 ? '#ef4444'
-                                 : state.derived.insurabilityIndex < 0.65 ? '#f59e0b' : '#06b6d4';
+                ctx.strokeStyle = state.derived.insurabilityIndex < CAS.CRITICAL_II ? '#ef4444'
+                                 : state.derived.insurabilityIndex < CAS.ELEVATED_II ? '#f59e0b' : '#06b6d4';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 buf.forEach((v, i) => {
@@ -863,6 +949,8 @@
                     type: 'button',
                     'data-id': p.id,
                     'aria-pressed': state.activePreset === p.id ? 'true' : 'false',
+                    // Native tooltip on hover — zero deps, works on desktop + keyboard focus (some screen readers).
+                    title: p.label + ' — climate forcing ' + p.freq.toFixed(1) + 'x · adaptation ' + p.adapt.toFixed(2) + ' · reinsurance ' + p.rein.toFixed(2),
                     class: 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(state.activePreset === p.id),
                     text: p.label,
                     onclick: () => applyPreset(p.id)
@@ -890,6 +978,20 @@
             KafCa.publish('preset.applied', { id: id, label: p.label });
             recompute();
             appendChat('Preset loaded: ' + p.label + '. Sliders reflect illustrative starting values.', 'ai');
+        }
+
+        // Executive Report — timestamps and triggers native print. Preset/session context
+        // travels into the print view via a data attribute the print CSS renders in the ::before banner.
+        function bindPrintButton() {
+            const btn = document.getElementById('print-btn');
+            btn.addEventListener('click', () => {
+                const preset = findPreset(state.activePreset);
+                const label = preset ? preset.label : 'Custom scenario';
+                document.body.setAttribute('data-print-stamp',
+                    todayLocalIso() + ' · ' + label + ' · session ' + EvoMetaClaw.sessionId);
+                window.print();
+                KafCa.publish('ui.report.printed', { preset: state.activePreset, ii: state.derived.insurabilityIndex });
+            });
         }
 
         // Share button — copies current view URL to clipboard.
@@ -926,7 +1028,7 @@
             const trend = win.length > 4 ? (win[win.length - 1] - win[0]).toFixed(2) : '0.00';
             const proj = projectCAS(state.inputs, 5);
             const projEnd = proj[proj.length - 1].ii;
-            const crossYear = proj.findIndex(p => p.ii < 0.4);
+            const crossYear = proj.findIndex(p => p.ii < CAS.CRITICAL_II);
             const q = query.toLowerCase();
             if (q.includes('bond') || q.includes('resilience')) {
                 return 'Given current II=' + ii.toFixed(2) + ', projected II→' + projEnd.toFixed(2) + ' at t+5yr under BAU drift. I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
@@ -946,7 +1048,7 @@
             if (q.includes('preset') || q.includes('scenario')) {
                 return 'Six illustrative presets are available above the sliders — coastal FL, Gulf LA, SF Bay, Bangladesh Delta, plus IPCC SSP2-4.5 and SSP5-8.5. Click a chip to load, tweak sliders to depart from it.';
             }
-            if (ii < 0.4) {
+            if (ii < CAS.CRITICAL_II) {
                 return 'Diagnostic alert: at II=' + ii.toFixed(2) + ', primary carriers exit. Recommend federal resilience reinsurance backstop or mandatory municipal hardening.';
             }
             return 'System response: query evaluated against current state (climate forcing ' + state.inputs.frequency.toFixed(1) + 'x, adaptation ' + state.inputs.adaptation.toFixed(2) + '). Insurability holding at ' + ii.toFixed(2) + ', projected ' + projEnd.toFixed(2) + ' at t+5yr.';
@@ -1179,7 +1281,7 @@ table{width:100%;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px 
 <h1>Asset Vulnerability Assessment</h1>
 <p style="color:#64748b">Prepared for ${escapeHtml(lead.company)} · ZIP ${escapeHtml(lead.zip)} · ${escapeHtml(todayLocalIso())}</p>
 <div class="grade">${grade}</div>
-<p>Insurability Index (II<sub>t</sub>): <strong>${ii.toFixed(2)}</strong> — <em>${ii>=0.65?'Stable':ii>=0.4?'Elevated Risk':'Critical Bifurcation'}</em></p>
+<p>Insurability Index (II<sub>t</sub>): <strong>${ii.toFixed(2)}</strong> — <em>${ii>=CAS.ELEVATED_II?'Stable':ii>=CAS.CRITICAL_II?'Elevated Risk':'Critical Bifurcation'}</em></p>
 <table>
 <tr><th>Signal</th><th>Value</th></tr>
 <tr><td>Climate Forcing (f<sub>t</sub>)</td><td>${state.inputs.frequency.toFixed(2)}x</td></tr>
@@ -1257,6 +1359,7 @@ Singularity Nexus · © 2026</div>
             bindSlider('rein-slider', 'reinsurance', v => v.toFixed(2));
             renderPresetChips();
             bindShareButton();
+            bindPrintButton();
 
             // Hydrate from URL — preset id wins over raw sliders (canonical VIEW-STATE serialisation).
             const p = UrlState.readParams();

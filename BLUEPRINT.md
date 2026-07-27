@@ -1,8 +1,8 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.2.0
-**Date:** 2026-07-24
-**Status:** Production-ready pilot · marketing landing + interactive dashboard
+**Version:** 1.3.0
+**Date:** 2026-07-27
+**Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
 - Landing: `https://dnzengou.github.io/singularity-nexus/`
 - Dashboard: `https://dnzengou.github.io/singularity-nexus/app.html`
@@ -105,7 +105,10 @@ Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded 
 | ARIA-live announce only on level transitions | ✅ | v1.1 — E-audit P1 fold |
 | `applyState()` single-source-of-truth helper | ✅ | v1.1 — E-audit P1 fold |
 | Marketing landing page (`/index.html`) with OG + JSON-LD + backward-compat redirect | ✅ | v1.2 — dashboard moved to `/app.html` |
-| Named constants for CAS coefficients | 🔲 | Auditability improvement |
+| Named constants for CAS coefficients (`CAS` frozen namespace) | ✅ | v1.3 — auditability, closes v1.0 🔲 |
+| Preset chip hover tooltip (raw f/a/r values) | ✅ | v1.3 — transparency/onboarding |
+| Print styles + Executive Report button (`window.print()`) | ✅ | v1.3 — printable exec artifact |
+| Landing waitlist `mailto:` CTA (Pro early access) | ✅ | v1.3 — zero-infra lead capture |
 | Playwright smoke test suite | 🔲 | Pre-scale requirement |
 | Cryptographic seal (server-signed) for EvoMetaClaw | 🔲 | Requires backend — Phase 2 |
 | Real payment processing (Checkout Sessions) | 🔲 | Requires backend — Phase 2 |
@@ -169,6 +172,12 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.3.0 — 2026-07-27
+- **Named CAS coefficients (roadmap 🔲 close):** frozen `CAS` namespace at the top of the engine block. All 11 magic floats in `computeCAS` + 3 in `projectCAS` + 2 threshold checks now referenced by name (`CAS.FRAGILITY_FROM_FORCING`, `CAS.II_FROM_REIN`, `CAS.CRITICAL_II`, etc.). Same math, byte-identical output; external actuaries/regulators/RE brokers can now audit the model without pattern-matching floats. Formulas are self-documenting: `fragility = FRAGILITY_FROM_FORCING·f - FRAGILITY_FROM_ADAPT·a + FRAGILITY_BASELINE`.
+- **Preset chip tooltip:** native `title=` attribute renders on hover/focus with the raw parameter values (`SSP5-8.5 Aggressive — climate forcing 2.4x · adaptation 0.30 · reinsurance 0.55`). Zero deps, works on desktop + keyboard, no touch-device UX regression. Transparency/onboarding lever — visitors see WHAT a preset actually sets before they click.
+- **Executive Report print view:** header `Report` button between Share and ⚙. Triggers `window.print()`; a `@media print` block hides all interactive controls (WebGL canvas, sliders, chat form, action buttons), forces light colors, single-column layout, page-break-inside protection, and injects a banner `Singularity Nexus — Executive Report · 2026-07-27 · SSP5-8.5 Aggressive · session sess_…` via `body::before` reading a data-attribute the button stamps at print time. Result: a stakeholder-ready static snapshot without any PDF-generation dependency.
+- **Landing waitlist CTA:** `Get early access to Pro` mailto button next to the final CTA. Pre-fills subject `Singularity Nexus Pro - Early Access` + body template with Org/Role/Use-case prompts. Zero-infra lead capture; can swap for Web3Forms/Formspree later without changing the surface.
 
 ### v1.2.0 — 2026-07-24
 - **Landing page (kafcade v2.2 LANDING-PAGE + v3.1 DEMO-BEFORE-INSTALL):**
