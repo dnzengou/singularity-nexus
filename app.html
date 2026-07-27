@@ -333,10 +333,6 @@
         </footer>
     </div>
 
-    <!-- ================= Modal templates (kept hidden until called) ================= -->
-
-    <div id="modal-root" hidden></div>
-
     <!-- ================= Application logic ================= -->
     <script>
     (function () {
@@ -391,8 +387,22 @@
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
         function announce(msg) {
-            const live = document.getElementById('aria-live');
-            if (live) live.textContent = msg;
+            if (DOM.ariaLive) DOM.ariaLive.textContent = msg;
+        }
+
+        // Cached DOM refs — populated at boot before first render.
+        // Only cache elements read on per-tick or per-preset paths; one-off lookups stay inline.
+        const DOM = {};
+        function cacheDom() {
+            const ids = ['aria-live', 'index-val', 'status-badge', 'alert-box',
+                'proj-path', 'proj-endpoint', 'proj-crit',
+                'metric-trend', 'metric-vol', 'metric-bif', 'footer-samples', 'footer-region',
+                'freq-slider', 'adapt-slider', 'rein-slider', 'freq-val', 'adapt-val', 'rein-val',
+                'preset-chips'];
+            ids.forEach(id => {
+                const key = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                DOM[key] = document.getElementById(id);
+            });
         }
 
         // ---------- Config (Stripe link, webhook, activation) ---------- //
@@ -694,10 +704,7 @@
         // Sparkline projection — hand-rolled SVG, no chart library (IMMERSION-WITHOUT-WEIGHT).
         // Threshold line at II=0.4 (critical bifurcation) drawn as dashed reference.
         function renderProjection() {
-            const svg = document.getElementById('proj-path');
-            const end = document.getElementById('proj-endpoint');
-            const bandCrit = document.getElementById('proj-crit');
-            if (!svg) return;
+            if (!DOM.projPath) return;
             const trajectory = projectCAS(state.inputs, 5);
             const W = 200, H = 40;
             const pts = trajectory.map((p, i) => {
@@ -705,67 +712,68 @@
                 const y = H - p.ii * H;
                 return x.toFixed(1) + ',' + y.toFixed(1);
             });
-            svg.setAttribute('d', 'M' + pts.join(' L'));
             const endII = trajectory[trajectory.length - 1].ii;
-            end.textContent = 'II→' + endII.toFixed(2);
-            end.className = 'font-mono ' + (endII < CAS.CRITICAL_II ? 'text-red-400' : endII < CAS.ELEVATED_II ? 'text-amber-400' : 'text-cyan-300');
-            // Colour the path by end-state severity
-            svg.setAttribute('stroke', endII < CAS.CRITICAL_II ? '#ef4444' : endII < CAS.ELEVATED_II ? '#f59e0b' : '#06b6d4');
-            // Update crit-crossing indicator: does II cross the critical threshold within 5yr?
+            const stroke = endII < CAS.CRITICAL_II ? '#ef4444' : endII < CAS.ELEVATED_II ? '#f59e0b' : '#06b6d4';
+            const tone   = endII < CAS.CRITICAL_II ? 'text-red-400' : endII < CAS.ELEVATED_II ? 'text-amber-400' : 'text-cyan-300';
+            DOM.projPath.setAttribute('d', 'M' + pts.join(' L'));
+            DOM.projPath.setAttribute('stroke', stroke);
+            DOM.projEndpoint.textContent = 'II→' + endII.toFixed(2);
+            DOM.projEndpoint.className = 'font-mono ' + tone;
             const crosses = trajectory.some(p => p.ii < CAS.CRITICAL_II) && trajectory[0].ii >= CAS.CRITICAL_II;
-            bandCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < CAS.CRITICAL_II ? 'starts below critical' : 'holds above critical');
+            DOM.projCrit.textContent = crosses ? 'crosses critical within 5yr' : (endII < CAS.CRITICAL_II ? 'starts below critical' : 'holds above critical');
             KafCa.publish('projection.updated', { end: endII, trajectory: trajectory });
         }
 
-        function renderIndex() {
-            const iv = document.getElementById('index-val');
-            const sb = document.getElementById('status-badge');
-            const ab = document.getElementById('alert-box');
-            const ii = state.derived.insurabilityIndex;
-            iv.textContent = ii.toFixed(2);
-
-            let level, msg;
-            if (ii < CAS.CRITICAL_II) {
-                level = 'critical';
-                msg = 'CRITICAL: Index below 0.40. Reinsurance capital flight active. Mortgages losing underlying insurance backstop.';
-                iv.className = 'text-xl font-mono font-bold text-red-500 text-glow-danger';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30';
-                sb.textContent = 'Critical Bifurcation';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-red-950/50 border-red-500/50 text-red-200';
-                ab.textContent = msg;
-            } else if (ii < CAS.ELEVATED_II) {
-                level = 'elevated';
-                msg = 'ATTENTION: Primary insurers retreating. Residual market approaching absorption limits.';
-                iv.className = 'text-xl font-mono font-bold text-amber-400';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                sb.textContent = 'Elevated Risk';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-amber-950/40 border-amber-500/40 text-amber-200';
-                ab.textContent = msg;
-            } else {
-                level = 'stable';
-                msg = 'System nominal. Feedback dynamics within stable bounds.';
-                iv.className = 'text-xl font-mono font-bold text-cyan-400 text-glow';
-                sb.className = 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-                sb.textContent = 'Stable';
-                ab.className = 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200';
-                ab.textContent = msg;
+        // Data-driven index levels — one source of truth for classifier + colours + messaging.
+        // Ordered ascending: renderIndex picks the first entry whose `max` II exceeds current.
+        const LEVELS = [
+            {
+                id: 'critical', max: CAS.CRITICAL_II, badge: 'Critical Bifurcation',
+                msg: 'CRITICAL: Index below 0.40. Reinsurance capital flight active. Mortgages losing underlying insurance backstop.',
+                idxCls: 'text-xl font-mono font-bold text-red-500 text-glow-danger',
+                badgeCls: 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30',
+                alertCls: 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-red-950/50 border-red-500/50 text-red-200'
+            },
+            {
+                id: 'elevated', max: CAS.ELEVATED_II, badge: 'Elevated Risk',
+                msg: 'ATTENTION: Primary insurers retreating. Residual market approaching absorption limits.',
+                idxCls: 'text-xl font-mono font-bold text-amber-400',
+                badgeCls: 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30',
+                alertCls: 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-amber-950/40 border-amber-500/40 text-amber-200'
+            },
+            {
+                id: 'stable', max: Infinity, badge: 'Stable',
+                msg: 'System nominal. Feedback dynamics within stable bounds.',
+                idxCls: 'text-xl font-mono font-bold text-cyan-400 text-glow',
+                badgeCls: 'px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
+                alertCls: 'p-3 rounded-lg border text-xs font-mono transition-all duration-300 bg-cyan-950/30 border-cyan-500/30 text-cyan-200'
             }
+        ];
+
+        function renderIndex() {
+            const ii = state.derived.insurabilityIndex;
+            const lvl = LEVELS.find(L => ii < L.max);
+            DOM.indexVal.textContent = ii.toFixed(2);
+            DOM.indexVal.className   = lvl.idxCls;
+            DOM.statusBadge.className = lvl.badgeCls;
+            DOM.statusBadge.textContent = lvl.badge;
+            DOM.alertBox.className    = lvl.alertCls;
+            DOM.alertBox.textContent  = lvl.msg;
             // Announce only on level TRANSITIONS — screen readers were being spammed every slider tick.
-            if (level !== state.lastLevel) {
-                announce('Insurability index ' + ii.toFixed(2) + ', ' + level);
-                state.lastLevel = level;
+            if (lvl.id !== state.lastLevel) {
+                announce('Insurability index ' + ii.toFixed(2) + ', ' + lvl.id);
+                state.lastLevel = lvl.id;
             }
         }
 
         // KafCade signals drive the trend/vol/bifurcation readout and gate escalating alerts.
         KafCa.subscribe('stream.window.updated', ({ payload }) => {
             const arrow = payload.trend > 0.02 ? '↗' : payload.trend < -0.02 ? '↘' : '→';
-            document.getElementById('metric-trend').textContent = arrow + ' ' + payload.trend.toFixed(2);
-            document.getElementById('metric-vol').textContent = payload.volatility.toFixed(3);
-            const bif = document.getElementById('metric-bif');
-            bif.textContent = payload.bifurcation ? 'YES' : 'no';
-            bif.className = 'text-sm font-mono ' + (payload.bifurcation ? 'text-red-400 text-glow-danger' : 'text-emerald-400');
-            document.getElementById('footer-samples').textContent = 'samples: ' + payload.samples;
+            DOM.metricTrend.textContent = arrow + ' ' + payload.trend.toFixed(2);
+            DOM.metricVol.textContent   = payload.volatility.toFixed(3);
+            DOM.metricBif.textContent   = payload.bifurcation ? 'YES' : 'no';
+            DOM.metricBif.className     = 'text-sm font-mono ' + (payload.bifurcation ? 'text-red-400 text-glow-danger' : 'text-emerald-400');
+            DOM.footerSamples.textContent = 'samples: ' + payload.samples;
         });
 
         // ---------- WebGL renderer (with graceful 2D fallback) ---------- //
@@ -912,15 +920,14 @@
         function applyState(inputs, presetId) {
             state.inputs = { frequency: inputs.frequency, adaptation: inputs.adaptation, reinsurance: inputs.reinsurance };
             state.activePreset = presetId || '';
-            document.getElementById('freq-slider').value = state.inputs.frequency;
-            document.getElementById('adapt-slider').value = state.inputs.adaptation;
-            document.getElementById('rein-slider').value = state.inputs.reinsurance;
-            document.getElementById('freq-val').textContent = state.inputs.frequency.toFixed(1) + 'x';
-            document.getElementById('adapt-val').textContent = state.inputs.adaptation.toFixed(2);
-            document.getElementById('rein-val').textContent = state.inputs.reinsurance.toFixed(2);
-            const region = document.getElementById('footer-region');
+            DOM.freqSlider.value  = state.inputs.frequency;
+            DOM.adaptSlider.value = state.inputs.adaptation;
+            DOM.reinSlider.value  = state.inputs.reinsurance;
+            DOM.freqVal.textContent  = state.inputs.frequency.toFixed(1) + 'x';
+            DOM.adaptVal.textContent = state.inputs.adaptation.toFixed(2);
+            DOM.reinVal.textContent  = state.inputs.reinsurance.toFixed(2);
             const preset = findPreset(state.activePreset);
-            region.textContent = 'Region: ' + (preset ? preset.label : 'Custom scenario');
+            DOM.footerRegion.textContent = 'Region: ' + (preset ? preset.label : 'Custom scenario');
             markActivePreset();
             UrlState.write(state.inputs, state.activePreset);
         }
@@ -933,42 +940,37 @@
                 v.textContent = fmt(state.inputs[key]);
                 // Manual slider drift → clear preset id + refresh URL + footer region.
                 state.activePreset = '';
-                document.getElementById('footer-region').textContent = 'Region: Custom scenario';
+                DOM.footerRegion.textContent = 'Region: Custom scenario';
                 markActivePreset();
                 UrlState.write(state.inputs, '');
                 recompute();
             });
         }
 
-        // Preset chip renderer + click handler.
+        // Preset chip renderer — creates the DOM once at boot; markActivePreset() mutates aria/class per state change.
+        const CHIP_BASE   = 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ';
+        const CHIP_ACTIVE = 'bg-cyan-500/25 border-cyan-400/60 text-cyan-100';
+        const CHIP_IDLE   = 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-200';
+
         function renderPresetChips() {
-            const root = document.getElementById('preset-chips');
-            root.textContent = '';
+            DOM.presetChips.textContent = '';
             Presets.forEach(p => {
-                const chip = el('button', {
+                DOM.presetChips.appendChild(el('button', {
                     type: 'button',
                     'data-id': p.id,
-                    'aria-pressed': state.activePreset === p.id ? 'true' : 'false',
                     // Native tooltip on hover — zero deps, works on desktop + keyboard focus (some screen readers).
                     title: p.label + ' — climate forcing ' + p.freq.toFixed(1) + 'x · adaptation ' + p.adapt.toFixed(2) + ' · reinsurance ' + p.rein.toFixed(2),
-                    class: 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(state.activePreset === p.id),
                     text: p.label,
                     onclick: () => applyPreset(p.id)
-                });
-                root.appendChild(chip);
+                }));
             });
-        }
-        function chipClass(active) {
-            return active
-                ? 'bg-cyan-500/25 border-cyan-400/60 text-cyan-100'
-                : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-200';
+            markActivePreset();
         }
         function markActivePreset() {
-            const chips = document.querySelectorAll('#preset-chips .preset-chip');
-            chips.forEach(c => {
+            DOM.presetChips.querySelectorAll('.preset-chip, button').forEach(c => {
                 const on = c.getAttribute('data-id') === state.activePreset;
                 c.setAttribute('aria-pressed', on ? 'true' : 'false');
-                c.className = 'preset-chip text-[10px] font-mono px-2 py-1 rounded-md border transition ' + chipClass(on);
+                c.className = CHIP_BASE + (on ? CHIP_ACTIVE : CHIP_IDLE);
             });
         }
         function applyPreset(id) {
@@ -1266,21 +1268,28 @@
             }
         }
 
+        // Shared inline stylesheet used by every generated report (assessment, bond).
+        // Extra selectors (`.grade`) are harmless when the report doesn't render them.
+        const REPORT_CSS = 'body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}'
+            + 'h1{color:#0891b2;margin-bottom:0}'
+            + '.grade{font-size:64px;font-weight:900}'
+            + 'table{width:100%;border-collapse:collapse;margin:24px 0}'
+            + 'td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}'
+            + '.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}';
+
         function buildAssessmentReport(lead, state) {
             const ii = state.derived.insurabilityIndex;
             const grade = ii >= 0.7 ? 'A' : ii >= 0.55 ? 'B' : ii >= 0.4 ? 'C' : 'D';
+            const gradeColor = ii < 0.5 ? '#dc2626' : '#0891b2';
             const recs = ii < 0.5
                 ? '<li>Immediate capital rotation from Tier-1 coastal exposure</li><li>Parametric bond wrapper on core assets</li><li>Reinsurance backstop renegotiation within 90 days</li>'
                 : '<li>Hardening capex prioritized on top-quartile fragility assets</li><li>Rolling reinsurance capacity review each 12mo</li><li>Monitor II<sub>t</sub> for cross-threshold events</li>';
             return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Assessment ${escapeAttr(lead.company)}</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
-h1{color:#0891b2;margin-bottom:0}.grade{font-size:64px;font-weight:900;color:${ii<0.5?'#dc2626':'#0891b2'}}
-table{width:100%;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
-.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
+<style>${REPORT_CSS}</style></head>
 <body>
 <h1>Asset Vulnerability Assessment</h1>
 <p style="color:#64748b">Prepared for ${escapeHtml(lead.company)} · ZIP ${escapeHtml(lead.zip)} · ${escapeHtml(todayLocalIso())}</p>
-<div class="grade">${grade}</div>
+<div class="grade" style="color:${gradeColor}">${grade}</div>
 <p>Insurability Index (II<sub>t</sub>): <strong>${ii.toFixed(2)}</strong> — <em>${ii>=CAS.ELEVATED_II?'Stable':ii>=CAS.CRITICAL_II?'Elevated Risk':'Critical Bifurcation'}</em></p>
 <table>
 <tr><th>Signal</th><th>Value</th></tr>
@@ -1304,9 +1313,7 @@ This report reflects current session parameters. Live monitoring available under
             const payout = unlocked ? '100% notional if II<sub>t</sub> &lt; ' + trigger + ' for 30 consecutive trading days' : '<em>[REDACTED — Pro only]</em>';
             const triggers = unlocked ? '<ul><li>Primary: II<sub>t</sub> monitoring via Nexus API</li><li>Secondary: NOAA county-level wind speed &gt; SS-Cat 3</li><li>Tertiary: Reinsurance capacity index &lt; 0.30</li></ul>' : '<em>[REDACTED — Pro only]</em>';
             return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus Resilience Bond Spec</title>
-<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.5}
-h1{color:#0891b2}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
-.foot{color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>
+<style>${REPORT_CSS}</style></head>
 <body>
 <h1>Resilience Bond Specification</h1>
 <p style="color:#64748b">Draft · ${escapeHtml(todayLocalIso())} · Recipient ${escapeHtml(lead.email)}</p>
@@ -1353,6 +1360,7 @@ Singularity Nexus · © 2026</div>
         // ---------- Boot ---------- //
 
         function boot() {
+            cacheDom();
             document.getElementById('footer-session').textContent = 'Session ' + EvoMetaClaw.sessionId;
             bindSlider('freq-slider', 'frequency', v => v.toFixed(1) + 'x');
             bindSlider('adapt-slider', 'adaptation', v => v.toFixed(2));

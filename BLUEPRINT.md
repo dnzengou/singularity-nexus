@@ -1,6 +1,6 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.3.0
+**Version:** 1.3.1
 **Date:** 2026-07-27
 **Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
@@ -172,6 +172,15 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.3.1 — 2026-07-27
+**Streamline pass (kafcade v3.0 LESS-IS-MORE + evo-metaclaw v1.4 SUBTRACTIVE).** Behavior-preserving. Zero new features, zero new files. Net LOC delta ≈ 0 (+17 lines: extracted structures — LEVELS table, DOM cache, REPORT_CSS const — offset the deletions). This is "structure over inline", not raw shrink; auditability rises even if line count doesn't fall.
+
+- **Data-driven `LEVELS` classifier** — replaced `renderIndex`'s 30-line `if/elif/else` with a 3-entry `LEVELS` table (`{id, max, badge, msg, idxCls, badgeCls, alertCls}`) + a single `LEVELS.find(L => ii < L.max)` lookup. Level thresholds + copy + Tailwind classes now live in one auditable place; adding a fourth level is a one-line change.
+- **DOM ref cache** — `cacheDom()` at boot populates a `DOM` object with the 18 elements read on per-slider-tick or per-preset paths. `renderIndex` / `renderProjection` / KafCade tile subscriber / `applyState` / `bindSlider` / `renderPresetChips` now use `DOM.foo` instead of `document.getElementById('foo')`. Avoids ~180 lookups/sec under a drag; also removes the ambient "did I typo this id" risk (all ids listed in one array).
+- **Shared `REPORT_CSS` constant** — deduped ~200 chars of inline styles between `buildAssessmentReport` and `buildBondSpec`. Grade colour now via a per-report `style=` attribute; the shared stylesheet is single source of truth for report typography.
+- **Unified preset chip render/refresh** — `renderPresetChips` now creates un-styled chips and delegates class + `aria-pressed` to `markActivePreset()` (called at end of render and on every state change). Deleted `chipClass()` helper; hoisted `CHIP_BASE` / `CHIP_ACTIVE` / `CHIP_IDLE` to module constants. Chip class strings now appear in exactly one place.
+- **Deleted dead `#modal-root` element** — the placeholder `<div id="modal-root" hidden>` in the HTML was never appended to (modal system uses `document.body` directly). Removed.
 
 ### v1.3.0 — 2026-07-27
 - **Named CAS coefficients (roadmap 🔲 close):** frozen `CAS` namespace at the top of the engine block. All 11 magic floats in `computeCAS` + 3 in `projectCAS` + 2 threshold checks now referenced by name (`CAS.FRAGILITY_FROM_FORCING`, `CAS.II_FROM_REIN`, `CAS.CRITICAL_II`, etc.). Same math, byte-identical output; external actuaries/regulators/RE brokers can now audit the model without pattern-matching floats. Formulas are self-documenting: `fragility = FRAGILITY_FROM_FORCING·f - FRAGILITY_FROM_ADAPT·a + FRAGILITY_BASELINE`.
