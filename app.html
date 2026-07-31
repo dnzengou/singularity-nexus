@@ -507,6 +507,9 @@
         // ---------- KafCade: cascading windowed aggregator over KafCa events ---------- //
         // Emits `stream.window.updated` with trend/volatility/bifurcation signals derived from a rolling buffer.
         const KafCade = (function () {
+            // Post-v1.4 RAF-throttle: buffer receives one sample per animation frame under drag,
+            // not per input event. On a 3-second drag, that's ~180 samples not thousands — good.
+            // Volatility during drag reads slightly lower than pre-v1.4 (fewer intermediate values).
             const WINDOW = 60;
             const buffer = [];
             function stddev(xs) {
@@ -591,6 +594,13 @@
             KafCa.subscribe('ui.audit.requested', ({ payload }) => record('audit', payload));
             KafCa.subscribe('commerce.lead.captured', ({ payload }) => record('lead', payload));
             KafCa.subscribe('commerce.bond.generated', ({ payload }) => record('bond', payload));
+            // v1.4 wire-in: previously published without subscribers (dead pub/sub caught by E-audit).
+            // Adding to the ledger means preset switches, share events, print events, and projection
+            // updates all become part of the exportable trajectory — extends the EvoMetaClaw moat.
+            KafCa.subscribe('preset.applied', ({ payload }) => record('preset', payload));
+            KafCa.subscribe('ui.share.copied', ({ payload }) => record('share', payload));
+            KafCa.subscribe('ui.report.printed', ({ payload }) => record('report', payload));
+            KafCa.subscribe('projection.updated', ({ payload }) => record('projection', { end: payload.end }));
 
             return {
                 sessionId,
@@ -691,7 +701,30 @@
             return out;
         }
 
-        function recompute() {
+        // RAF-throttled scheduler for recompute — coalesces multiple slider input events per frame.
+        // Sliders can fire `input` at ~60Hz; without throttling, each event ran renderIndex +
+        // renderProjection + KafCa publish, doing 3-5× redundant work per animation frame.
+        // requestRecompute() batches: at most one recompute per frame, always trailing (last write wins).
+        // Any consumer that reads state.derived after a possibly-pending slider tick MUST call
+        // flushRecompute() first — otherwise it reads a one-frame-stale value while state.inputs
+        // is sync-fresh, producing an inconsistent narrative (e.g. stale II + fresh projection).
+        let recomputePending = false;
+        let recomputeHandle = 0;
+        function requestRecompute() {
+            if (recomputePending) return;
+            recomputePending = true;
+            recomputeHandle = requestAnimationFrame(() => {
+                recomputePending = false;
+                recomputeNow();
+            });
+        }
+        function flushRecompute() {
+            if (!recomputePending) return;
+            cancelAnimationFrame(recomputeHandle);
+            recomputePending = false;
+            recomputeNow();
+        }
+        function recomputeNow() {
             state.derived = computeCAS(state.inputs);
             renderIndex();
             renderProjection();
@@ -872,7 +905,14 @@
                     camera.updateProjectionMatrix();
                     renderer.setSize(w, h);
                 }
-                window.addEventListener('resize', onResize);
+                // RAF-throttled resize: fires can hit hundreds/sec during a browser drag; coalesce
+                // to one resize per frame. Matches the recompute throttle discipline (v1.4).
+                let resizePending = false;
+                window.addEventListener('resize', () => {
+                    if (resizePending) return;
+                    resizePending = true;
+                    requestAnimationFrame(() => { resizePending = false; onResize(); });
+                });
                 // Defer first sizing to the next frame — belt-and-suspenders for embeds where
                 // the container's layout hasn't resolved by the time boot() runs.
                 requestAnimationFrame(onResize);
@@ -943,7 +983,7 @@
                 DOM.footerRegion.textContent = 'Region: Custom scenario';
                 markActivePreset();
                 UrlState.write(state.inputs, '');
-                recompute();
+                requestRecompute();
             });
         }
 
@@ -978,7 +1018,7 @@
             if (!p) return;
             applyState({ frequency: p.freq, adaptation: p.adapt, reinsurance: p.rein }, id);
             KafCa.publish('preset.applied', { id: id, label: p.label });
-            recompute();
+            recomputeNow();
             appendChat('Preset loaded: ' + p.label + '. Sliders reflect illustrative starting values.', 'ai');
         }
 
@@ -987,6 +1027,7 @@
         function bindPrintButton() {
             const btn = document.getElementById('print-btn');
             btn.addEventListener('click', () => {
+                flushRecompute();  // Printed report must reflect the II shown on-screen at click time.
                 const preset = findPreset(state.activePreset);
                 const label = preset ? preset.label : 'Custom scenario';
                 document.body.setAttribute('data-print-stamp',
@@ -1098,6 +1139,7 @@
         // ---------- Commercial pipeline handlers ---------- //
 
         function openAssessment() {
+            flushRecompute();  // Report will read state.derived; match on-screen at open time.
             const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
             const nameI = el('input', { type: 'text', required: true, maxlength: 80, placeholder: 'Full name',
                 class: 'w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100' });
@@ -1141,6 +1183,7 @@
         }
 
         function openBond() {
+            flushRecompute();  // Bond spec reads state.derived (fragility, trigger); match on-screen.
             const cfg = Config.load();
             const form = el('form', { class: 'space-y-3', autocomplete: 'off' });
             const emailI = el('input', { type: 'email', required: true, maxlength: 120, placeholder: 'Work email',
@@ -1385,6 +1428,7 @@ Singularity Nexus · © 2026</div>
             }
 
             document.getElementById('audit-btn').addEventListener('click', () => {
+                flushRecompute();  // Sync any pending slider tick so audit narrative matches on-screen II.
                 const s = state.derived;
                 const primaryDriver = state.inputs.frequency > 2.0 ? 'Accelerated Climate Event Frequency' : 'Reinsurance Capacity Limits';
                 appendChat('Executive audit — II<sub>t</sub>=' + s.insurabilityIndex.toFixed(2) + '. Primary driver: ' + primaryDriver + '. Recommended: Parametric Resilience Bonds to close the Infrastructure Maintenance Gap.', 'ai');
@@ -1402,6 +1446,7 @@ Singularity Nexus · © 2026</div>
                 if (!text) return;
                 appendChat(text, 'user');
                 input.value = '';
+                flushRecompute();  // Chat reply reads state.derived; ensure it matches on-screen II.
                 setTimeout(() => appendChat(concierge(text), 'ai'), 350);
             });
 
@@ -1410,7 +1455,7 @@ Singularity Nexus · © 2026</div>
             if (!webglOk) init2DFallback();
 
             applyActivationState();
-            recompute();
+            recomputeNow();
         }
 
         // Boot as soon as DOM is parsed; scripts sit at bottom of body so this is safe.

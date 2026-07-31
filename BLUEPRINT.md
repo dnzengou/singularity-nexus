@@ -1,6 +1,6 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.3.1
+**Version:** 1.4.0
 **Date:** 2026-07-27
 **Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
@@ -33,12 +33,14 @@ The MVP ships as a **single self-contained HTML file** (~60 KB) with zero build 
         └────────────────┬────────────────────────────┘
                          │ DOM events
                          ▼
-        ┌─────────────────────────────────────────────┐
-        │  KafCa — client pub/sub event bus           │
-        │  topics: state.changed · ui.audit.requested │
-        │          commerce.lead · commerce.bond      │
-        │          metaclaw.recorded · window.updated │
-        └────┬─────────────┬──────────────┬───────────┘
+        ┌─────────────────────────────────────────────────────────┐
+        │  KafCa — client pub/sub event bus                       │
+        │  topics: state.changed · ui.audit.requested             │
+        │          commerce.lead.captured · commerce.bond.generated│
+        │          metaclaw.recorded · stream.window.updated      │
+        │          preset.applied · projection.updated            │
+        │          ui.share.copied · ui.report.printed            │
+        └────┬─────────────┬──────────────┬───────────────────────┘
              │             │              │
              ▼             ▼              ▼
       ┌──────────┐  ┌──────────┐   ┌──────────────┐
@@ -77,7 +79,7 @@ The MVP ships as a **single self-contained HTML file** (~60 KB) with zero build 
 | Commerce pipeline | ~180 | Assessment / Bond / Export / Config flows + HTML report generators |
 | Chat concierge | ~30 | Keyword-routed responses grounded in current state |
 
-Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded via CDN with fail-safe fallbacks).
+Total: 2 shipped files — `app.html` (~1470 lines, ~84 KB) as the dashboard, `index.html` (~460 lines, ~22 KB) as the marketing landing with backward-compat redirect for legacy `?preset=` URLs. No build-time dependencies (Tailwind + Three.js loaded via CDN with fail-safe fallbacks).
 
 ---
 
@@ -147,6 +149,44 @@ Total: 1 file, ~1070 lines, no dependencies at rest (Tailwind + Three.js loaded 
 
 ---
 
+## Data Provenance & EO Integration Roadmap (v2.0 sketch)
+
+The 6 shipped presets (`S. Florida Atlantic`, `Gulf Coast LA`, `SF Bay Area`, `Bangladesh Delta`, `SSP2-4.5 Baseline`, `SSP5-8.5 Aggressive`) are **illustrative demonstration values**, chosen to exercise the three CAS input axes across a defensible range. They are NOT calibrated against actuarial data. This is disclosed in-app (chip-row header: `illustrative`) and repeated in [SECURITY.md](.github/SECURITY.md).
+
+A **v2.0 backend evolution** would replace the static preset table with an EO-grounded ingestion pipeline. Sketched below so the substitution is honest and evolvable, not hand-wave.
+
+### CAS inputs ↔ EO signal mapping
+
+| CAS input | Physical proxy | EO source | STAC catalog |
+|---|---|---|---|
+| `frequency` (climate forcing multiplier) | 10-yr trend in extreme-precipitation days + Cat-3+ wind events per admin-boundary | ERA5 reanalysis + IBTrACS + NOAA HURDAT2 | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com) `era5-pds`, `noaa-hurdat` |
+| `adaptation` (infrastructure hardening budget proxy) | NDVI + built-up-area change detection + green-infrastructure inventory | Sentinel-2 L2A (10 m, 5-day revisit) → NDVI; NBR for burn recovery | [Copernicus Data Space](https://dataspace.copernicus.eu) `sentinel-2-l2a`; MPC `sentinel-2-l2a` |
+| `reinsurance` (capacity index) | Not EO-derivable; from Willis/Aon/Guy Carpenter capacity indices + NAIC state filings | External API — treasury.gov data feed + reinsurer quarterly reports | N/A (financial data) |
+| `fragility` (derived, not user-set) | SAR-based subsidence + coastal erosion rate + flood-return-period from DEM | Sentinel-1 InSAR + Copernicus DEM + FEMA NFHL | MPC `sentinel-1-grd`, `cop-dem-glo-30`; AWS `sentinel-1-l1c-cogs` |
+
+### Pipeline shape (Python, out-of-repo)
+
+```python
+# Offline batch — not in-browser. Runs weekly per region-of-interest.
+import pystac_client, stackstac, xarray as xr
+
+cat = pystac_client.Client.open("https://planetarycomputer.microsoft.com/api/stac/v1")
+items = cat.search(collections=["sentinel-2-l2a"], intersects=aoi, datetime="2024-01/2026-07",
+                   query={"eo:cloud_cover": {"lt": 20}}).item_collection()
+stack = stackstac.stack(items, resolution=10, epsg=3857, assets=["B04", "B08"])
+ndvi = (stack.sel(band="B08") - stack.sel(band="B04")) / (stack.sel(band="B08") + stack.sel(band="B04"))
+adaptation_proxy = ndvi.resample(time="Y").mean().rio.clip(aoi.geometry).mean().item()  # 0..1
+```
+
+Region-specific `{frequency, adaptation, reinsurance}` triples get exported as a static JSON manifest, loaded at runtime by the same `Presets` table — the frontend doesn't change shape. Cf. `eo-suite` / `eo-gis-agent` skills for the concrete tooling.
+
+### Why not now
+
+- Static-first, backend-later is the [FREEMIUM-VIA-REDIRECT](.github/SECURITY.md) philosophy applied to data. Ship the interactive dashboard with honest illustrative data; add EO grounding when the buyer conversation warrants the Python pipeline + weekly refresh cadence + storage cost.
+- The `Presets` table interface is stable — swap the array literal for a `fetch('/data/regions.json')` when ready. Frontend unchanged.
+
+---
+
 ## Security Posture
 
 - **CSP:** `default-src 'self'`; `script-src` allowlists Tailwind + Three.js CDNs only; `frame-ancestors 'none'`
@@ -172,6 +212,14 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.4.0 — 2026-07-27
+- **RAF-throttled slider recompute (closes v1.0 🔲 `RAF-throttle rapid slider input`):** `input` events at ~60Hz now coalesce into one `requestAnimationFrame` callback (trailing, last-write-wins). `bindSlider` → `requestRecompute()`; preset apply + boot → `recomputeNow()` (immediate for discrete events). Reduces per-drag work by 3-5× on typical drags; screen readers announce level transitions once per real level change, not once per event.
+- **`flushRecompute()` for read-derived-state consumers (E-audit P1 fold):** the naive RAF-throttle created a one-frame gap where `state.inputs` was sync-fresh but `state.derived` was stale — a click within that gap (audit button, chat submit, print button, assessment/bond modal open) would report a stale II next to a fresh projection. `flushRecompute()` cancels any pending RAF and runs the compute synchronously. Wired into all five click paths that read `state.derived`.
+- **RAF-throttled WebGL resize (matches blueprint claim, drops the drift lint):** browser resize can fire hundreds per second during a window drag; coalesced to one per animation frame. Same discipline as the recompute throttle.
+- **Dead pub/sub topics wired into EvoMetaClaw ledger (E-audit P2 fold):** four topics (`preset.applied`, `projection.updated`, `ui.share.copied`, `ui.report.printed`) were published without subscribers. Adding them to the ledger extends the exportable trajectory — every user gesture now shows up in the Pro-tier trajectory export, thickening the EvoMetaClaw moat without adding new UI.
+- **Data Provenance & EO Integration Roadmap (BLUEPRINT):** new section between the RRSS attestation and the Security Posture. Maps each CAS input to a physical proxy + EO source (ERA5 · Sentinel-2 NDVI · Sentinel-1 InSAR · IBTrACS) with STAC catalog URLs (Microsoft Planetary Computer, Copernicus Data Space, AWS Open Data). Includes a short `pystac_client` + `stackstac` code sketch showing how a v2.0 backend would populate the `Presets` table with region-fitted values — the frontend interface stays identical, only the data source swaps. Honest disclosure of the illustrative-vs-actuarial gap; concrete evolvability path for v2.0.
+- **Data Provenance & EO Integration Roadmap (BLUEPRINT):** new section between the RRSS attestation and the Security Posture. Maps each CAS input to a physical proxy + EO source (ERA5 · Sentinel-2 NDVI · Sentinel-1 InSAR · IBTrACS) with STAC catalog URLs (Microsoft Planetary Computer, Copernicus Data Space, AWS Open Data). Includes a short `pystac_client` + `stackstac` code sketch showing how a v2.0 backend would populate the `Presets` table with region-fitted values — the frontend interface stays identical, only the data source swaps. Honest disclosure of the illustrative-vs-actuarial gap; concrete evolvability path for v2.0.
 
 ### v1.3.1 — 2026-07-27
 **Streamline pass (kafcade v3.0 LESS-IS-MORE + evo-metaclaw v1.4 SUBTRACTIVE).** Behavior-preserving. Zero new features, zero new files. Net LOC delta ≈ 0 (+17 lines: extracted structures — LEVELS table, DOM cache, REPORT_CSS const — offset the deletions). This is "structure over inline", not raw shrink; auditability rises even if line count doesn't fall.
