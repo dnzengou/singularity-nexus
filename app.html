@@ -106,6 +106,56 @@
             backdrop-filter: blur(8px); z-index: 50;
             display: flex; align-items: center; justify-content: center; padding: 16px;
         }
+        /* Native kbd styling for shortcut hints — matches Linear/Cursor/GitHub conventions. */
+        kbd {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            padding: 1px 5px;
+            color: #cbd5e1;
+            line-height: 1;
+            min-width: 16px;
+            display: inline-block;
+            text-align: center;
+        }
+        /* First-visit onboarding tooltip — dismissable, non-modal (no focus trap). */
+        .nx-onboard {
+            position: absolute;
+            z-index: 40;
+            max-width: 280px;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: #030712;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(6, 182, 212, 0.35);
+            animation: nxPulse 2s ease-in-out infinite;
+        }
+        .nx-onboard::after {
+            content: '';
+            position: absolute; top: -8px; left: 24px;
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid #06b6d4;
+        }
+        .nx-onboard button {
+            background: rgba(3, 7, 18, 0.15); color: #030712;
+            border: none; padding: 2px 8px; margin-left: 8px;
+            border-radius: 4px; font-size: 10px; font-weight: 700;
+            cursor: pointer;
+        }
+        @keyframes nxPulse {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .nx-onboard { animation: none; }
+        }
         [hidden] { display: none !important; }
     </style>
 </head>
@@ -147,11 +197,14 @@
                         Stable
                     </div>
                 </div>
-                <button id="share-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Copy shareable link to this scenario">
-                    Share
+                <button id="help-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider hidden md:inline-flex items-center gap-1.5" aria-label="Show keyboard shortcuts">
+                    Shortcuts <kbd aria-hidden="true">?</kbd>
                 </button>
-                <button id="print-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider" aria-label="Print executive report of current scenario">
-                    Report
+                <button id="share-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5" aria-label="Copy shareable link to this scenario">
+                    Share <kbd aria-hidden="true" class="hidden md:inline-block">s</kbd>
+                </button>
+                <button id="print-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5" aria-label="Print executive report of current scenario">
+                    Report <kbd aria-hidden="true" class="hidden md:inline-block">p</kbd>
                 </button>
                 <button id="config-btn" class="glass-card px-3 py-2 rounded-lg text-slate-300 hover:text-cyan-300 pointer-events-auto" aria-label="Open configuration">
                     &#9881;
@@ -1037,6 +1090,84 @@
             });
         }
 
+        // v1.5 keyboard shortcuts — Linear/Cursor pattern. Skips when user is typing in an input.
+        // 1..6 loads preset by index, s copies share URL, p prints report, ? shows overlay, esc closes modal.
+        function isTyping(target) {
+            if (!target) return false;
+            const t = target.tagName;
+            return t === 'INPUT' || t === 'TEXTAREA' || target.isContentEditable;
+        }
+        function bindKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (isTyping(e.target)) return;
+                if (e.metaKey || e.ctrlKey || e.altKey) return;  // Don't shadow browser shortcuts.
+                const key = e.key;
+                if (key >= '1' && key <= '6') {
+                    const idx = parseInt(key, 10) - 1;
+                    if (Presets[idx]) { applyPreset(Presets[idx].id); e.preventDefault(); }
+                } else if (key === 's') {
+                    document.getElementById('share-btn').click(); e.preventDefault();
+                } else if (key === 'p') {
+                    document.getElementById('print-btn').click(); e.preventDefault();
+                } else if (key === '?') {
+                    openShortcutOverlay(); e.preventDefault();
+                }
+            });
+        }
+        function openShortcutOverlay() {
+            const rows = [
+                ['1..6', 'Load scenario preset by index'],
+                ['s',    'Copy shareable link to clipboard'],
+                ['p',    'Print executive report'],
+                ['?',    'Show this shortcut overlay'],
+                ['Esc',  'Close overlay or modal']
+            ];
+            const list = el('div', { class: 'space-y-2' }, rows.map(([k, desc]) =>
+                el('div', { class: 'flex items-center justify-between text-xs' }, [
+                    el('span', { class: 'text-slate-300', text: desc }),
+                    el('kbd', { text: k })
+                ])
+            ));
+            const body = el('div', { class: 'space-y-3' }, [
+                el('p', { class: 'text-xs text-slate-400', text: 'Keyboard shortcuts work anywhere on the dashboard except when you are typing in an input.' }),
+                list
+            ]);
+            openModal(makeModal('Keyboard Shortcuts', body, [
+                el('button', { class: 'btn-primary text-xs px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold uppercase tracking-wider', text: 'Got it', onclick: closeModal })
+            ]));
+        }
+
+        // v1.5 first-visit onboarding tooltip — non-modal, dismissable, pointer to preset chips.
+        // Uses localStorage so returning visitors aren't nagged.
+        const ONBOARD_KEY = 'nexus.v1.seen';
+        function maybeShowOnboarding() {
+            try { if (localStorage.getItem(ONBOARD_KEY)) return; } catch (_) { return; }
+            const anchor = DOM.presetChips;
+            if (!anchor) return;
+            const rect = anchor.getBoundingClientRect();
+            const tip = el('div', {
+                class: 'nx-onboard',
+                role: 'status',
+                'aria-live': 'polite'
+            }, [
+                document.createTextNode('New here? Click a scenario preset to explore. '),
+                el('button', { text: 'Got it', onclick: dismissOnboarding })
+            ]);
+            tip.style.top  = (window.scrollY + rect.bottom + 14) + 'px';
+            tip.style.left = (window.scrollX + rect.left) + 'px';
+            tip.id = 'nx-onboard-tip';
+            document.body.appendChild(tip);
+            // Auto-dismiss on first preset click (KafCa signals this).
+            const unsub = KafCa.subscribe('preset.applied', () => { dismissOnboarding(); unsub(); });
+            // Auto-dismiss after 20s so it doesn't linger indefinitely.
+            setTimeout(dismissOnboarding, 20000);
+        }
+        function dismissOnboarding() {
+            try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (_) {}
+            const tip = document.getElementById('nx-onboard-tip');
+            if (tip) tip.remove();
+        }
+
         // Share button — copies current view URL to clipboard.
         function bindShareButton() {
             const btn = document.getElementById('share-btn');
@@ -1411,6 +1542,8 @@ Singularity Nexus · © 2026</div>
             renderPresetChips();
             bindShareButton();
             bindPrintButton();
+            bindKeyboardShortcuts();
+            document.getElementById('help-btn').addEventListener('click', openShortcutOverlay);
 
             // Hydrate from URL — preset id wins over raw sliders (canonical VIEW-STATE serialisation).
             const p = UrlState.readParams();
@@ -1456,6 +1589,8 @@ Singularity Nexus · © 2026</div>
 
             applyActivationState();
             recomputeNow();
+            // Show onboarding after first render so the preset-chips element has a stable bounding box.
+            requestAnimationFrame(() => maybeShowOnboarding());
         }
 
         // Boot as soon as DOM is parsed; scripts sit at bottom of body so this is safe.

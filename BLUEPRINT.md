@@ -1,7 +1,7 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.4.0
-**Date:** 2026-07-27
+**Version:** 1.5.0
+**Date:** 2026-07-31
 **Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
 - Landing: `https://dnzengou.github.io/singularity-nexus/`
@@ -212,6 +212,14 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.5.0 — 2026-07-31
+**UX polish pass to close the gap vs Linear / Cursor / Vercel / Anthropic tier.** Four additions across dashboard + landing, all zero-dep.
+
+- **Keyboard shortcuts + `<kbd>` hints + `?` overlay (dashboard):** press `1`–`6` to load a preset by index, `s` to Share, `p` to print Report, `?` to open the shortcut overlay. Header buttons carry inline `<kbd>` hints (hidden on mobile). Skips shortcuts when typing in an input (guard: `INPUT`/`TEXTAREA`/`isContentEditable`). Skips modifier chords so it never shadows browser shortcuts. Linear/Cursor signature discoverability at ~55 LOC.
+- **First-visit onboarding tooltip (dashboard):** floating tooltip anchored under the preset chip row on first visit, dismissable via "Got it", first preset click, or 20s auto-dismiss. `localStorage.nexus.v1.seen` gates so returning users aren't nagged. Non-modal (no focus trap) — this is a pointer, not an interruption. Respects `prefers-reduced-motion` for the pulse animation.
+- **FAQ section (landing):** 6 native `<details><summary>` accordions between Commercial Pipeline and Final CTA — zero JS. Questions: "Is this a real actuarial tool?", "How is II_t calculated?", "Can I use my own data?", "What's actually in Pro?", "Why single-file HTML?", "Is my data sent anywhere?". Each answer links back to the honest disclosures in BLUEPRINT.md + SECURITY.md. Objection-handling → sales-friction reduction.
+- **Scroll-fade motion (landing):** IntersectionObserver adds `.visible` class to `.fade-in` sections as they enter viewport (threshold 0.15, unobserve after fire). CSS transition on opacity + translateY. Zero deps, ~20 LOC total (CSS + JS). Graceful fallback for browsers without IO (all sections show immediately). Respects `prefers-reduced-motion`.
 
 ### v1.4.0 — 2026-07-27
 - **RAF-throttled slider recompute (closes v1.0 🔲 `RAF-throttle rapid slider input`):** `input` events at ~60Hz now coalesce into one `requestAnimationFrame` callback (trailing, last-write-wins). `bindSlider` → `requestRecompute()`; preset apply + boot → `recomputeNow()` (immediate for discrete events). Reduces per-drag work by 3-5× on typical drags; screen readers announce level transitions once per real level change, not once per event.
