@@ -21,8 +21,9 @@
     <meta name="twitter:title" content="Singularity Nexus — CAS Insurance Intelligence">
     <meta name="twitter:description" content="Pinpoint insurability bifurcation points 3–5 years before conventional models.">
 
-    <!-- CSP: tighter than the app since landing has zero external calls except Tailwind CDN. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; form-action 'self';">
+    <!-- CSP: tighter than the app since landing has zero external calls except Tailwind CDN.
+         Note: `frame-ancestors` is silently ignored in <meta>; enforce via hosting-layer headers. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self'; font-src 'self' data:; form-action 'self';">
 
     <!-- Backward-compat redirect for v1.1 shareable URLs — do this BEFORE any other JS
          so users who click a shared preset link get the app instantly, not a marketing bounce. -->
@@ -35,8 +36,9 @@
     })();
     </script>
 
-    <!-- Tailwind CDN with graceful fallback (matches app.html discipline). -->
-    <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"
+    <!-- Tailwind CDN with graceful fallback. No `crossorigin`: without SRI it only triggers
+         a CORS check that fails visibly (Tailwind CDN doesn't send Access-Control-Allow-Origin). -->
+    <script src="https://cdn.tailwindcss.com"
             onerror="document.documentElement.classList.add('no-tw')"></script>
 
     <style>

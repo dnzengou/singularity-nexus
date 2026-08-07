@@ -1,6 +1,6 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.5.0
+**Version:** 1.5.1
 **Date:** 2026-07-31
 **Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
@@ -212,6 +212,13 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.5.1 — 2026-07-31
+**Patch bump — three P1 bugs surfaced by live console verification and hidden-tab testing.** No new features; behavior-preserving fixes.
+
+- **Dropped `crossorigin="anonymous"` from Tailwind + Three.js `<script>` tags** (both `app.html` and `index.html`). Without an accompanying SRI hash (which Tailwind's dynamic bundle can't support), `crossorigin` only triggers a CORS check that Tailwind's CDN doesn't satisfy — flooding the console with "blocked by CORS policy" errors. Removing is honest: no SRI, no crossorigin.
+- **Dropped `frame-ancestors 'none'` from meta CSP** (both files). Per spec, `frame-ancestors` is silently ignored when delivered via `<meta http-equiv="Content-Security-Policy">` — only response headers take effect. GH Pages can't send custom headers. Documented in `.github/SECURITY.md` with the deployment path for real enforcement (Netlify `_headers`, Cloudflare Workers, reverse proxy).
+- **Swapped `requestAnimationFrame` → `setTimeout(…, 200)` for the onboarding tooltip trigger.** rAF is paused/throttled in hidden tabs, so users who opened the app via a shared link in a background tab never saw the tooltip on first foreground view. `setTimeout` fires regardless of visibility (subject to background throttling but always eventually fires). The 200ms delay still gives the browser time to lay out preset chips before `getBoundingClientRect()` reads their position.
 
 ### v1.5.0 — 2026-07-31
 **UX polish pass to close the gap vs Linear / Cursor / Vercel / Anthropic tier.** Four additions across dashboard + landing, all zero-dep.

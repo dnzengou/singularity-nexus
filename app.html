@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#030712">
     <meta name="description" content="Singularity Nexus - Complex Adaptive Systems intelligence engine for climate insurability bifurcation forecasting.">
-    <!-- CSP tightened: no eval, no inline handlers, only allowlisted CDN origins. Inline script tag below is the last necessary exception. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; connect-src 'self' https:; font-src 'self' data:; frame-ancestors 'none'; form-action 'self';">
+    <!-- CSP tightened: no eval, no inline handlers, only allowlisted CDN origins. Inline script tag below is the last necessary exception.
+         Note: `frame-ancestors` is silently ignored in <meta> per spec (only works via HTTP response headers), so it's not listed here.
+         Clickjacking mitigation requires a hosting layer with header control (e.g. Netlify _headers, Cloudflare) — see SECURITY.md. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; connect-src 'self' https:; font-src 'self' data:; form-action 'self';">
     <title>Singularity Nexus | CAS Insurance Intelligence</title>
 
-    <!-- CDN resources with graceful onerror fallback. SRI is intentionally omitted for tailwind (dynamic response body) and left as a deploy-time responsibility for three.js pinning. -->
-    <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"
+    <!-- CDN resources with graceful onerror fallback. `crossorigin` is intentionally omitted:
+         Tailwind's CDN doesn't send Access-Control-Allow-Origin, and without SRI (dynamic bundle
+         makes SRI infeasible) crossorigin serves no purpose — it only triggers a CORS check that
+         fails visibly in console. Same reasoning for three.js. -->
+    <script src="https://cdn.tailwindcss.com"
             onerror="window.__NEXUS_TW_FAILED=true"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
             onerror="window.__NEXUS_THREE_FAILED=true"></script>
 
     <style>
@@ -1590,7 +1595,9 @@ Singularity Nexus · © 2026</div>
             applyActivationState();
             recomputeNow();
             // Show onboarding after first render so the preset-chips element has a stable bounding box.
-            requestAnimationFrame(() => maybeShowOnboarding());
+            // setTimeout (not rAF) so it fires even when the tab is hidden — users who open the app
+            // via a shared link in a background tab still see the tooltip on first foreground view.
+            setTimeout(() => maybeShowOnboarding(), 200);
         }
 
         // Boot as soon as DOM is parsed; scripts sit at bottom of body so this is safe.
