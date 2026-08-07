@@ -304,6 +304,36 @@
                     </div>
                 </div>
 
+                <!-- v1.6 Multi-Engine Diagnostic — BIOMIMIC + QUORUM sibling engines to CAS.
+                     2 of 53 evolutionary models catalogued; deeper engines are Pro roadmap. -->
+                <div class="border-t border-slate-700/40 pt-3 space-y-2.5" aria-labelledby="multi-engine-heading">
+                    <div class="flex justify-between items-baseline">
+                        <div id="multi-engine-heading" class="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Multi-Engine Diagnostic</div>
+                        <div class="text-[9px] text-slate-500 italic">BIOMIMIC · QUORUM · 2 of 53</div>
+                    </div>
+                    <!-- BIOMIMIC resilience composite row -->
+                    <div class="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-mono">Resilience</span>
+                            <span id="me-resilience-composite" class="text-lg font-mono font-bold text-cyan-300">—</span>
+                        </div>
+                        <span id="me-resilience-grade" class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-slate-700/50 text-slate-300 border border-slate-600/50">
+                            —
+                        </span>
+                    </div>
+                    <!-- QUORUM tipping-pressure bar -->
+                    <div class="bg-slate-800/40 rounded-lg px-3 py-2">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-mono">Tipping Pressure (TPI)</span>
+                            <span id="me-tipping-value" class="text-[11px] font-mono text-cyan-300">0.00</span>
+                        </div>
+                        <div class="h-1.5 rounded-full bg-slate-700/60 overflow-hidden" role="progressbar" aria-labelledby="multi-engine-heading">
+                            <div id="me-tipping-bar" class="h-full transition-all duration-300 bg-cyan-400" style="width: 0%"></div>
+                        </div>
+                        <div id="me-tipping-alert" class="text-[9px] font-mono uppercase tracking-wider mt-1 text-slate-500">safety valves holding</div>
+                    </div>
+                </div>
+
                 <button id="audit-btn" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-cyan-500/25">
                     Generate Executive Audit
                 </button>
@@ -456,7 +486,10 @@
                 'proj-path', 'proj-endpoint', 'proj-crit',
                 'metric-trend', 'metric-vol', 'metric-bif', 'footer-samples', 'footer-region',
                 'freq-slider', 'adapt-slider', 'rein-slider', 'freq-val', 'adapt-val', 'rein-val',
-                'preset-chips'];
+                'preset-chips',
+                // v1.6 multi-engine tiles
+                'me-resilience-composite', 'me-resilience-grade',
+                'me-tipping-value', 'me-tipping-bar', 'me-tipping-alert'];
             ids.forEach(id => {
                 const key = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
                 DOM[key] = document.getElementById(id);
@@ -659,6 +692,9 @@
             KafCa.subscribe('ui.share.copied', ({ payload }) => record('share', payload));
             KafCa.subscribe('ui.report.printed', ({ payload }) => record('report', payload));
             KafCa.subscribe('projection.updated', ({ payload }) => record('projection', { end: payload.end }));
+            // v1.6 multi-engine trajectory records — composite grade + TPI travel in the Pro export.
+            KafCa.subscribe('resilience.updated', ({ payload }) => record('resilience', payload));
+            KafCa.subscribe('tipping.updated',    ({ payload }) => record('tipping', payload));
 
             return {
                 sessionId,
@@ -709,6 +745,76 @@
             // Critical bifurcation threshold — carriers exit below this.
             CRITICAL_II: 0.40, ELEVATED_II: 0.65
         });
+
+        // v1.6 sibling engines — BIOMIMIC (resilience composite) + QUORUM (tipping-pressure early warning).
+        // Both are PURE functions of (inputs, derived) — same CAS state, different diagnostic lens.
+        // 2 of the 53 BioMimic evolutionary models catalogued; full library is a Pro roadmap item.
+        //
+        // BIOMIMIC — no single dimension predicts survival; the balance does.
+        //   Dormancy + reserves = survival capacity. Diversity + memory + adaptation = antifragility.
+        //   Active = present fitness. Composite grades the current scenario Critical -> Antifragile.
+        const BIOMIMIC = Object.freeze({
+            DIVERSITY_W: 0.15, MEMORY_W: 0.15, ADAPTATION_W: 0.20,
+            DORMANCY_W:  0.15, RESERVES_W: 0.20, ACTIVE_W:    0.15,
+            ANTIFRAGILE_MIN: 80, RESILIENT_MIN: 60, ELEVATED_MIN: 40
+        });
+        // QUORUM — systems don't fail gradually; they cross a density threshold and TIP suddenly.
+        //   Social "autoinducer" pressure builds until quorum -> everyone acts simultaneously.
+        //   TPI (tipping pressure index) is the counterpart to II_t: II_t = current state,
+        //   TPI = proximity to sudden collapse. Alert fires when TPI crosses ALERT threshold.
+        const QUORUM = Object.freeze({
+            GRIEVANCE_W:    0.25, ORGANIZATION_W: 0.10, OPPORTUNITY_W: 0.20,
+            PERCEPTION_W:   0.20, REPRESSION_W:  -0.15, INSTITUTIONS_W:-0.10,
+            ALERT_THRESHOLD: 0.60
+        });
+
+        function computeResilience(inputs, derived) {
+            // Map CAS state -> 6 BIOMIMIC factors, each in [0, 1].
+            // Memory is orthogonal to adaptation — proxied by session event count so it grows with use.
+            // (E-audit v1.6 P2 fold: previously memory==adaptation collapsed the "6-factor" grade to 5.)
+            const eventCount = (typeof EvoMetaClaw !== 'undefined' && EvoMetaClaw.snapshot)
+                ? EvoMetaClaw.snapshot().events.length : 0;
+            const diversity  = 1 - derived.fragility;                // low fragility = risk spread
+            const memory     = clamp(eventCount / 500, 0, 1);        // institutional memory grows with session depth
+            const adaptation = inputs.adaptation;                    // direct capacity to change
+            const dormancy   = inputs.reinsurance;                   // dormant capacity awaiting activation
+            const reserves   = clamp(inputs.reinsurance * 0.8 + (1 - derived.premium / 2) * 0.2, 0, 1);
+            const active     = derived.insurabilityIndex;            // present fitness
+            const composite = Math.round(100 * (
+                BIOMIMIC.DIVERSITY_W * diversity
+                + BIOMIMIC.MEMORY_W * memory
+                + BIOMIMIC.ADAPTATION_W * adaptation
+                + BIOMIMIC.DORMANCY_W * dormancy
+                + BIOMIMIC.RESERVES_W * reserves
+                + BIOMIMIC.ACTIVE_W * active
+            ));
+            let grade;
+            if      (composite >= BIOMIMIC.ANTIFRAGILE_MIN) grade = 'Antifragile';
+            else if (composite >= BIOMIMIC.RESILIENT_MIN)   grade = 'Resilient';
+            else if (composite >= BIOMIMIC.ELEVATED_MIN)    grade = 'Elevated';
+            else                                             grade = 'Critical';
+            return { diversity, memory, adaptation, dormancy, reserves, active, composite, grade };
+        }
+
+        function computeTippingPressure(inputs, derived) {
+            // Map CAS state -> 6 QUORUM factors. Repression + institutions SUBTRACT (safety valves).
+            const grievance    = clamp(derived.premium / 2, 0, 1);                            // customer pain from premium spikes
+            const organization = clamp(1 - inputs.reinsurance, 0, 1);                         // market fragmentation
+            const opportunity  = derived.fragility;                                            // vulnerability window
+            const perception   = clamp(1 - derived.insurabilityIndex, 0, 1);                   // "everyone knows this is failing"
+            const repression   = inputs.reinsurance;                                           // reinsurance backstop suppresses
+            const institutions = clamp(inputs.reinsurance * (1 - derived.fragility), 0, 1);    // safety valve bleeds pressure
+            const raw =
+                QUORUM.GRIEVANCE_W    * grievance
+              + QUORUM.ORGANIZATION_W * organization
+              + QUORUM.OPPORTUNITY_W  * opportunity
+              + QUORUM.PERCEPTION_W   * perception
+              + QUORUM.REPRESSION_W   * repression
+              + QUORUM.INSTITUTIONS_W * institutions;
+            const tpi = clamp(raw, 0, 1);
+            const alert = tpi >= QUORUM.ALERT_THRESHOLD;
+            return { grievance, organization, opportunity, perception, repression, institutions, tpi, alert };
+        }
 
         const DEFAULT_INPUTS = { frequency: 1.2, adaptation: 0.40, reinsurance: 0.85 };
         const state = {
@@ -782,14 +888,62 @@
             recomputePending = false;
             recomputeNow();
         }
+        // Track last-published engine values so publishes only fire on discrete change.
+        // Without this gate, RAF-throttled drags emit 3 events/tick × 60fps → 2000-event splice ceiling
+        // truncates the trajectory in ~11s of continuous drag (E-audit v1.6 P1 fold).
+        let lastPublishedComposite = null;
+        let lastPublishedTpiBucket = null;
+
         function recomputeNow() {
             state.derived = computeCAS(state.inputs);
+            state.resilience = computeResilience(state.inputs, state.derived);
+            state.tipping    = computeTippingPressure(state.inputs, state.derived);
             renderIndex();
             renderProjection();
+            renderMultiEngine();
             KafCa.publish('state.changed', {
                 inputs: Object.assign({}, state.inputs),
                 derived: Object.assign({}, state.derived)
             });
+            // Publish engine deltas only when the observable value bucket changes — dedup 3-events/tick down to per-transition.
+            if (state.resilience.composite !== lastPublishedComposite) {
+                lastPublishedComposite = state.resilience.composite;
+                KafCa.publish('resilience.updated', { composite: state.resilience.composite, grade: state.resilience.grade });
+            }
+            const tpiBucket = Math.round(state.tipping.tpi * 20);  // 0.05 granularity — semantic changes only.
+            if (tpiBucket !== lastPublishedTpiBucket) {
+                lastPublishedTpiBucket = tpiBucket;
+                KafCa.publish('tipping.updated', { tpi: state.tipping.tpi, alert: state.tipping.alert });
+            }
+        }
+
+        // v1.6 Multi-Engine Diagnostic renderer — updates the BIOMIMIC + QUORUM panel from state.
+        // Grade + TPI colour by severity: cyan (healthy) -> amber (elevated) -> red (critical).
+        function renderMultiEngine() {
+            if (!DOM.meResilienceComposite) return;
+            const r = state.resilience;
+            const t = state.tipping;
+            // Resilience composite + grade badge
+            DOM.meResilienceComposite.textContent = r.composite + '/100';
+            const rTone = r.composite >= 80 ? 'text-emerald-300' : r.composite >= 60 ? 'text-cyan-300' : r.composite >= 40 ? 'text-amber-300' : 'text-red-400';
+            DOM.meResilienceComposite.className = 'text-lg font-mono font-bold ' + rTone;
+            const gradeBadgeCls = r.composite >= 80 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                 : r.composite >= 60 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                                 : r.composite >= 40 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                 : 'bg-red-500/20 text-red-300 border-red-500/40';
+            DOM.meResilienceGrade.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border ' + gradeBadgeCls;
+            DOM.meResilienceGrade.textContent = r.grade;
+            // Tipping pressure bar
+            DOM.meTippingValue.textContent = t.tpi.toFixed(2);
+            DOM.meTippingBar.style.width = Math.round(t.tpi * 100) + '%';
+            const barTone = t.alert ? 'bg-red-500' : t.tpi >= 0.4 ? 'bg-amber-400' : 'bg-cyan-400';
+            DOM.meTippingBar.className = 'h-full transition-all duration-300 ' + barTone;
+            DOM.meTippingValue.className = 'text-[11px] font-mono ' + (t.alert ? 'text-red-300 text-glow-danger' : t.tpi >= 0.4 ? 'text-amber-300' : 'text-cyan-300');
+            DOM.meTippingAlert.textContent = t.alert
+                ? 'QUORUM REACHED — imminent bifurcation'
+                : t.tpi >= 0.4 ? 'pressure elevated · monitor institutions'
+                : 'safety valves holding';
+            DOM.meTippingAlert.className = 'text-[9px] font-mono uppercase tracking-wider mt-1 ' + (t.alert ? 'text-red-400' : t.tpi >= 0.4 ? 'text-amber-400' : 'text-slate-500');
         }
 
         // Sparkline projection — hand-rolled SVG, no chart library (IMMERSION-WITHOUT-WEIGHT).
@@ -1209,7 +1363,7 @@
             const projEnd = proj[proj.length - 1].ii;
             const crossYear = proj.findIndex(p => p.ii < CAS.CRITICAL_II);
             const q = query.toLowerCase();
-            if (q.includes('bond') || q.includes('resilience')) {
+            if (q.includes('bond')) {
                 return 'Given current II=' + ii.toFixed(2) + ', projected II→' + projEnd.toFixed(2) + ' at t+5yr under BAU drift. I recommend a 5yr parametric bond with trigger at II<0.55, notional scaled to portfolio exposure. Click "Resilience Bond Specification" for a draft.';
             }
             if (q.includes('mortgage') || q.includes('default')) {
@@ -1226,6 +1380,17 @@
             }
             if (q.includes('preset') || q.includes('scenario')) {
                 return 'Six illustrative presets are available above the sliders — coastal FL, Gulf LA, SF Bay, Bangladesh Delta, plus IPCC SSP2-4.5 and SSP5-8.5. Click a chip to load, tweak sliders to depart from it.';
+            }
+            if (q.includes('resilience') || q.includes('grade') || q.includes('antifragile')) {
+                const r = state.resilience;
+                return 'BIOMIMIC composite: ' + r.composite + '/100 · ' + r.grade + '. Weighted 6-factor read: diversity ' + r.diversity.toFixed(2) + ', memory ' + r.memory.toFixed(2) + ', adaptation ' + r.adaptation.toFixed(2) + ', dormancy ' + r.dormancy.toFixed(2) + ', reserves ' + r.reserves.toFixed(2) + ', active ' + r.active.toFixed(2) + '. DARE principle: dormancy is not failure — it is survival capacity waiting to deploy.';
+            }
+            if (q.includes('tipping') || q.includes('quorum') || q.includes('bifurcation') || q.includes('collapse')) {
+                const t = state.tipping;
+                return 'QUORUM early-warning: TPI=' + t.tpi.toFixed(2) + (t.alert ? ' — ALERT, quorum reached, imminent bifurcation.' : ' · ' + (t.tpi >= 0.4 ? 'pressure elevated, monitor institutions.' : 'safety valves holding.')) + ' Punctuated equilibrium says systems tip suddenly at density threshold — TPI tracks pressure accumulation before the jump.';
+            }
+            if (q.includes('multi-engine') || q.includes('framework') || q.includes('53')) {
+                return 'v1.6 ships 2 of 53 evolutionary models from the BioMimic framework: BIOMIMIC (resilience composite) + QUORUM (tipping-pressure early warning). Both are pure functions over the same CAS state — different diagnostic lenses. Full 53-model library (Lotka-Volterra predator-prey, Red Queen arms race, Metapopulation, Trophic Cascades, etc.) is a Pro roadmap item.';
             }
             if (ii < CAS.CRITICAL_II) {
                 return 'Diagnostic alert: at II=' + ii.toFixed(2) + ', primary carriers exit. Recommend federal resilience reinsurance backstop or mandatory municipal hardening.';

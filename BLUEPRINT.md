@@ -1,6 +1,6 @@
 # Singularity Nexus — Blueprint
 
-**Version:** 1.5.1
+**Version:** 1.6.0
 **Date:** 2026-07-31
 **Status:** Production-ready pilot · marketing landing + interactive dashboard + executive-report export
 **Live URLs:**
@@ -212,6 +212,21 @@ Payment links are user-configurable via the ⚙ gear icon — swap for real Stri
 ---
 
 ## Changelog
+
+### v1.6.0 — 2026-07-31
+**Multi-Engine CAS Model — first 2 of 53 evolutionary models shipped.** Two pure sibling engines compute alongside `computeCAS`, each surfacing a different diagnostic lens on the same scenario state. Zero new deps, ~150 LOC, no bundle bloat beyond the panel HTML + CSS.
+
+- **BIOMIMIC Resilience Engine** (`computeResilience(inputs, derived)`): 6-factor weighted composite scoring the current scenario 0–100 with grade `Antifragile ≥80 / Resilient ≥60 / Elevated ≥40 / Critical <40`. Factors mapped from CAS state — Diversity=`1-fragility`, Memory+Adaptation=`inputs.adaptation`, Dormancy=`inputs.reinsurance`, Reserves=blended reinsurance+premium buffer, Active=`insurabilityIndex`. Encodes the DARE principle: dormancy is not failure — bet-hedging survives hostile environments decisively better.
+- **QUORUM Tipping-Pressure Engine** (`computeTippingPressure(inputs, derived)`): 6-factor pressure index 0–1 with `alert` boolean above 0.6. Grievance + Organization + Opportunity + Perception accumulate; Repression + Institutions subtract (safety valves). TPI is the counterpart to II_t — where II_t measures current insurability, TPI measures proximity to punctuated-equilibrium bifurcation. When TPI crosses the alert threshold, the panel flashes red with "QUORUM REACHED — imminent bifurcation".
+- **UI panel** — "Multi-Engine Diagnostic" section in the left column between KafCade metric tiles and the Executive Audit button. Two rows: composite grade badge + TPI progress bar with alert state. Attribution line: "BIOMIMIC · QUORUM · 2 of 53" — honest about scope + monetization hook.
+- **KafCa topics + EvoMetaClaw ledger** — `resilience.updated` + `tipping.updated` published per recompute; both subscribed into EvoMetaClaw so composite grades + TPI travel in the Pro trajectory export. Extends the moat: not just parameter path, now also multi-engine grade evolution.
+- **Concierge upgrades** — 4 new keyword branches (`resilience/grade/antifragile`, `tipping/quorum/bifurcation/collapse`, `multi-engine/framework/53`) route to grounded responses citing the current engine outputs.
+- **Landing FAQ** — new "What is the Multi-Engine Diagnostic?" question explaining the 2-of-53 framing and the deferred models.
+- **E-audit fold-ins (same-commit, per E-B PARALLEL COMMIT HOLD):**
+  - **P0** — Concierge routing collision: the pre-existing `bond || resilience` keyword branch was intercepting `resilience` queries before they reached the new BIOMIMIC handler. Dropped `resilience` from the bond branch; bond queries still route via `bond` alone. Both handlers now reachable.
+  - **P1** — Ledger overflow: 3 new events/tick (state.changed + resilience.updated + tipping.updated) against a 2000-event splice ceiling would truncate the trajectory in ~11s of continuous drag. Fixed by epsilon-gating both engine publishes — `resilience.updated` fires only when composite integer changes, `tipping.updated` fires only when TPI crosses a 0.05 granularity bucket. Reduces steady-state ledger growth to per-transition instead of per-tick.
+  - **P2** — BIOMIMIC memory factor collapse: initial mapping had both `memory` and `adaptation` derive from `inputs.adaptation`, effectively collapsing the "6-factor" grade to 5. Fixed by proxying memory from `EvoMetaClaw.snapshot().events.length` (institutional memory grows with session depth) — recovers the sixth orthogonal factor and encodes the honest signal that repeat users build calibration capital.
+- **Known follow-up (not folded, scope for v1.7):** mobile layout stack — left column post-v1.6 exceeds ~800px on 375px viewports before commerce/concierge sections come into view. Wrap Multi-Engine or Presets in a mobile-collapsed `<details>` accordion.
 
 ### v1.5.1 — 2026-07-31
 **Patch bump — three P1 bugs surfaced by live console verification and hidden-tab testing.** No new features; behavior-preserving fixes.
